@@ -1,0 +1,7 @@
+{
+    "java.compile.nullAnalysis.mode": "automatic",
+    "files.associations": {
+        "*.env*": "dotenv"
+    },
+    "java.configuration.updateBuildConfiguration": "interactive"
+}

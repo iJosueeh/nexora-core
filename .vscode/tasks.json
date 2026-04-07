@@ -1,0 +1,24 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Spring Boot (.env)",
+      "type": "shell",
+      "command": "Get-Content .env | Where-Object {$_ -and -not $_.StartsWith('#')} | ForEach-Object { $key, $value = $_ -split '=', 2; [Environment]::SetEnvironmentVariable($key, $value, 'Process') }; ./mvnw.cmd spring-boot:run",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "shell": {
+          "executable": "powershell",
+          "args": [
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command"
+          ]
+        }
+      },
+      "group": "build",
+      "problemMatcher": []
+    }
+  ]
+}

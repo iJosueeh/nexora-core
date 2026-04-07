@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Debug JWT Starter (.env)",
+      "request": "launch",
+      "mainClass": "com.template.jwtstarter.JwtStarterApplication",
+      "projectName": "spring-boot-jwt-starter",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env"
+    }
+  ]
+}
