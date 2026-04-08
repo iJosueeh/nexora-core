@@ -1,33 +1,65 @@
-# Spring Boot JWT Starter
+# Nexora - Red Social Universitaria (Backend Core)
 
-[![CI](https://github.com/<OWNER>/<REPO>/actions/workflows/ci.yml/badge.svg)](https://github.com/<OWNER>/<REPO>/actions/workflows/ci.yml)
+Nexora es una red social universitaria para estudiantes de la UTP, inspirada en la experiencia de Twitter. Este repositorio contiene el backend core de la aplicacion.
 
-Starter base para autenticacion JWT usando Spring Boot, Spring Security y JPA.
+## Descripcion
 
-## Stack
+NexoraApp permite:
+
+- Publicar mensajes
+- Comentar publicaciones
+- Dar like
+- Compartir publicaciones
+- Gestionar perfiles y contenido multimedia
+
+El backend esta construido con Spring Boot y expone APIs REST (autenticacion y usuarios) con integracion inicial de GraphQL.
+
+## Tecnologias
 
 - Java 21
 - Spring Boot 4.0.3
-- Spring Security
+- Spring Security + JWT
 - Spring Data JPA
+- GraphQL (Spring GraphQL)
 - PostgreSQL (runtime)
-- JJWT 0.12.6
-- SpringDoc OpenAPI (Swagger UI)
-- H2 (solo para tests)
+- H2 (tests)
+- OpenAPI/Swagger (opcional en desarrollo)
 
-## Estructura base
+## Estructura del backend
 
 ```text
-src/main/java/com/template/jwtstarter
+src/main/java/com/nexora/core
   auth/
+  common/
+  graphql/
   security/
   user/
-  common/
 ```
+
+Clase principal:
+
+- `NexoraAppApplication`
+
+## Documentacion por feature
+
+La guia para el equipo backend esta en:
+
+- `docs/README.md`
+
+Cada modulo tiene su propio documento en:
+
+- `docs/features/auth/README.md`
+- `docs/features/user/README.md`
+- `docs/features/security/README.md`
+- `docs/features/graphql/README.md`
+
+Plantilla base para nuevos modulos:
+
+- `docs/features/_template/README.md`
 
 ## Variables de entorno requeridas
 
-Configura estas variables para ejecutar la app en local (perfil `dev`):
+Configura estas variables para ejecutar en local:
 
 - `DB_URL`
 - `DB_USERNAME`
@@ -35,139 +67,112 @@ Configura estas variables para ejecutar la app en local (perfil `dev`):
 - `JWT_SECRET`
 - `JWT_REFRESH_SECRET`
 
-Tambien puedes crear un archivo `.env` en la raiz del proyecto (ya esta habilitado en `application.yml`).
-Puedes partir de `.env.example` o `.env.template` y copiarlo como `.env`.
+Variables opcionales:
 
-Ejemplo (PowerShell):
-
-```powershell
-$env:DB_URL="jdbc:postgresql://localhost:5432/jwtstarter"
-$env:DB_USERNAME="postgres"
-$env:DB_PASSWORD="postgres"
-$env:JWT_SECRET="change-this-secret-key-at-least-32-characters"
-$env:JWT_REFRESH_SECRET="change-this-refresh-secret-key-at-least-32-chars"
-```
+- `SPRING_PROFILES_ACTIVE` (recomendado: `dev`)
+- `APP_DOCS_PUBLIC_ENABLED` (por defecto: `false`)
+- `APP_GRAPHQL_PUBLIC_ENABLED` (por defecto: `true`)
+- `GRAPHQL_GRAPHIQL_ENABLED` (por defecto: `true`)
 
 Ejemplo de `.env`:
 
 ```dotenv
-DB_URL=jdbc:postgresql://localhost:5432/jwtstarter
+DB_URL=jdbc:postgresql://localhost:5432/nexora
 DB_USERNAME=postgres
 DB_PASSWORD=postgres
 JWT_SECRET=change-this-secret-key-at-least-32-characters
 JWT_REFRESH_SECRET=change-this-refresh-secret-key-at-least-32-chars
+SPRING_PROFILES_ACTIVE=dev
+APP_DOCS_PUBLIC_ENABLED=true
+APP_GRAPHQL_PUBLIC_ENABLED=true
+GRAPHQL_GRAPHIQL_ENABLED=true
 ```
 
-## CORS
-
-La configuracion CORS es global y se aplica desde `SecurityConfig`.
-
-Variables opcionales:
-
-- `CORS_ALLOWED_ORIGINS` (por defecto: `http://localhost:3000,http://localhost:5173`)
-- `CORS_ALLOWED_METHODS` (por defecto: `GET,POST,PUT,PATCH,DELETE,OPTIONS`)
-- `CORS_ALLOWED_HEADERS` (por defecto: `*`)
-- `CORS_EXPOSED_HEADERS` (por defecto: `Authorization`)
-- `CORS_ALLOW_CREDENTIALS` (por defecto: `true`)
-- `CORS_MAX_AGE` (por defecto: `3600`)
-
-## Ejecutar proyecto
-
-Activa el perfil `dev` para desarrollo local:
+## Instalacion y ejecucion
 
 ```powershell
-$env:SPRING_PROFILES_ACTIVE="dev"
+./mvnw.cmd clean spring-boot:run
 ```
 
-```powershell
-./mvnw.cmd spring-boot:run
-```
-
-Aplicacion por defecto en:
+La API inicia por defecto en:
 
 - `http://localhost:8080`
 
-Swagger:
+## GraphQL integrado
 
-Disponible solo cuando `APP_DOCS_PUBLIC_ENABLED=true`.
+Endpoint GraphQL:
 
-- `http://localhost:8080/swagger-ui/index.html`
-- `http://localhost:8080/v3/api-docs`
+- `POST /graphql`
 
-## Correr tests
+IDE GraphiQL:
+
+- `GET /graphiql`
+
+Schema inicial:
+
+```graphql
+type Query {
+  health: String!
+}
+```
+
+Consulta de ejemplo:
+
+```graphql
+query {
+  health
+}
+```
+
+Respuesta esperada:
+
+```json
+{
+  "data": {
+    "health": "Nexora GraphQL API is running"
+  }
+}
+```
+
+## Endpoints REST actuales
+
+Publicos:
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+
+Protegidos con JWT:
+
+- `GET /api/users/{id}`
+
+## Testing
 
 ```powershell
 ./mvnw.cmd test
 ```
 
-Los tests usan perfil `test` con base en memoria H2 (`src/test/resources/application-test.yml`).
+Los tests usan perfil `test` con H2 en memoria.
 
-## Endpoints disponibles
+## Frontend (referencia del proyecto general)
 
-### Auth (publicos)
+Stack del frontend de Nexora:
 
-- `POST /api/auth/register`
-- `POST /api/auth/login`
+- Angular
 
-### User (protegido con JWT)
-
-- `GET /api/users/{id}`
-
-## Pruebas rapidas con cURL
-
-### Register
+Comandos esperados en el repo frontend:
 
 ```bash
-curl -X POST "http://localhost:8080/api/auth/register" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "john_doe",
-    "email": "john@example.com",
-    "password": "Password123"
-  }'
+npm install
+ng serve
+ng test
 ```
 
-### Login
+## Equipo de desarrollo
 
-```bash
-curl -X POST "http://localhost:8080/api/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "john@example.com",
-    "password": "Password123"
-  }'
-```
+- @Crismar12
+- @kath144 (Katherine Salas)
+- @KennySth
 
-Respuesta esperada (ejemplo):
+## Licencia
 
-```json
-{
-  "success": true,
-  "message": "Login successful",
-  "data": {
-    "accessToken": "<JWT_TOKEN>",
-    "tokenType": "Bearer",
-    "expiresIn": 900000,
-    "userId": 1,
-    "email": "john@example.com",
-    "role": "USER"
-  }
-}
-```
-
-Para endpoints protegidos:
-
-```text
-Authorization: Bearer <JWT_TOKEN>
-```
-
-## Notas para extender el boilerplate
-
-- Agregar refresh token endpoint (`/api/auth/refresh`).
-- Mejorar manejo de excepciones por tipo (401, 403, 404, 422).
-- Agregar migraciones (Flyway o Liquibase) para ambientes reales.
-- Endurecer configuracion de `application-prod.yml` para produccion.
-
-## Branch protection recomendada
-
-Consulta la configuracion sugerida en `.github/branch-protection.md`.
+Proyecto academico para la UTP. Uso educativo.
