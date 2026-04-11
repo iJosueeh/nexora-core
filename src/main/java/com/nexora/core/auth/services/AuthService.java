@@ -6,22 +6,27 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.nexora.core.auth.dto.AuthResponse;
 import com.nexora.core.auth.dto.LoginRequest;
 import com.nexora.core.auth.dto.RegisterRequest;
 import com.nexora.core.security.jwt.JwtService;
+import com.nexora.core.user.entity.Roles;
 import com.nexora.core.user.entity.User;
 import com.nexora.core.user.enums.Role;
+import com.nexora.core.user.repository.RoleRepository;
 import com.nexora.core.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
@@ -34,12 +39,14 @@ public class AuthService {
             throw new IllegalArgumentException("Email is already registered");
         }
 
+        Roles userRole = roleRepository.findByName(Role.ROLE_STUDENT.name())
+                .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+
         User user = new User();
-        user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setIsActive(true);
-        user.setRole(Role.USER);
+        user.setRole(userRole);
 
         User savedUser = userRepository.save(user);
         return buildAuthResponse(savedUser);
@@ -64,7 +71,7 @@ public class AuthService {
                 .expiresIn(expiration)
                 .userId(user.getId())
                 .email(user.getEmail())
-                .role(user.getRole())
+                .role(Role.valueOf(user.getRole().getName()))
                 .build();
     }
 }

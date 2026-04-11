@@ -1,6 +1,7 @@
 package com.nexora.core.user.enums;
 
 public enum Role {
-    ADMIN,
-    USER
+    ROLE_ADMIN,
+    ROLE_STUDENT,
+    ROLE_OFFICIAL
 }

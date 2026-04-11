@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.UUID;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -16,6 +17,9 @@ import com.nexora.core.auth.dto.AuthResponse;
 import com.nexora.core.auth.dto.LoginRequest;
 import com.nexora.core.auth.dto.RegisterRequest;
 import com.nexora.core.auth.services.AuthService;
+import com.nexora.core.user.entity.Roles;
+import com.nexora.core.user.enums.Role;
+import com.nexora.core.user.repository.RoleRepository;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -24,9 +28,21 @@ class AuthControllerIntegrationTest {
     @Autowired
     private AuthService authService;
 
+    @Autowired
+    private RoleRepository roleRepository;
+
+    @BeforeEach
+    void setUp() {
+        if (roleRepository.findByName(Role.ROLE_STUDENT.name()).isEmpty()) {
+            Roles role = new Roles();
+            role.setName(Role.ROLE_STUDENT.name());
+            roleRepository.save(role);
+        }
+    }
+
     @Test
     void registerShouldReturnToken() {
-        String email = "user-" + UUID.randomUUID() + "@example.com";
+        String email = "user-" + UUID.randomUUID() + "@utp.edu.pe";
 
         RegisterRequest request = new RegisterRequest();
         request.setUsername("john_doe");
@@ -41,7 +57,7 @@ class AuthControllerIntegrationTest {
 
     @Test
     void loginWithWrongPasswordShouldFail() {
-        String email = "user-" + UUID.randomUUID() + "@example.com";
+        String email = "user-" + UUID.randomUUID() + "@utp.edu.pe";
 
         RegisterRequest registerRequest = new RegisterRequest();
         registerRequest.setUsername("john_doe");
