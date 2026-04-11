@@ -2,14 +2,19 @@ package com.nexora.core.auth.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
 public class LoginRequest {
 
-    @Email(message = "Email is not valid")
-    @NotBlank(message = "Email is required")
+    @NotBlank(message = "El email es obligatorio")
+    @Email(message = "Debe ser un formato de email válido")
+    @Pattern(
+        regexp = "^[a-zA-Z0-9._%+-]+@utp\\.edu\\.pe$", 
+        message = "Solo se permiten correos institucionales de la UTP"
+    )
     private String email;
 
     @NotBlank(message = "Password is required")

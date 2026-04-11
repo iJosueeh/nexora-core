@@ -1,32 +1,28 @@
 package com.nexora.core.user.entity;
 
-import com.nexora.core.common.entity.BaseEntity;
-import com.nexora.core.user.enums.Role;
+import com.nexora.core.common.entity.AuditableBaseEntity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Table;
+
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
 @Getter
 @Setter
-@Table(name = "users")
-public class User extends BaseEntity {
+@Table(name = "usuarios")
+public class User extends AuditableBaseEntity {
 
-    private String username;
-
-    @Column(unique = true)
+    @Column(name="email",unique = true, nullable = false)
     private String email;
 
+    @Column(name="password",nullable = false,columnDefinition = "TEXT")
     private String password;
 
-    @Column(nullable = false)
+    @Column(nullable = false, name = "is_active")
     private Boolean isActive = true;
 
-    @Enumerated(EnumType.STRING)
-    private Role role;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "role_id", nullable = false)
+    private Roles role;
 }
