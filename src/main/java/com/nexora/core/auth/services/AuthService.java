@@ -1,5 +1,11 @@
 package com.nexora.core.auth.services;
 
+import com.nexora.core.profile.entity.AcademicInterests;
+import com.nexora.core.profile.entity.Profiles;
+import com.nexora.core.profile.entity.ProfilesInterests;
+import com.nexora.core.profile.repository.AcademicInterestsRepository;
+import com.nexora.core.profile.repository.ProfilesInterestsRepository;
+import com.nexora.core.profile.repository.ProfilesRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -27,6 +33,9 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final ProfilesRepository profilesRepository;
+    private final AcademicInterestsRepository academicInterestsRepository;
+    private final ProfilesInterestsRepository profilesInterestsRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
@@ -49,6 +58,35 @@ public class AuthService {
         user.setRole(userRole);
 
         User savedUser = userRepository.save(user);
+        //Perfil
+        Profiles profile = new Profiles();
+        profile.setUsuarioId(savedUser.getId());
+        profile.setCarrera(null);
+        profile.setUsername(request.getUsername());
+        profile.setFullName(request.getFullName());
+        profile.setBio(request.getBio());
+        profile.setAvatarUrl(null);
+        profile.setBannerUrl(null);
+        profile.setFollowersCount(0);
+
+        Profiles savedProfile = profilesRepository.save(profile);
+
+        //Intereses de Perfil
+        for (String interestName : request.getAcademicInterests()) {
+            // Buscar si el interés existe en la DB (o crearlo si no)
+            AcademicInterests interest = academicInterestsRepository.findByName(interestName)
+                    .orElseGet(() -> {
+                        AcademicInterests newInterest = new AcademicInterests();
+                        newInterest.setName(interestName);
+                        return academicInterestsRepository.save(newInterest);
+                    });
+
+            // Crear la relación en la tabla intermedia
+            ProfilesInterests relation = new ProfilesInterests();
+            relation.setProfile(savedProfile);
+            relation.setInteres(interest);
+            profilesInterestsRepository.save(relation);
+        }
         return buildAuthResponse(savedUser);
     }
 
@@ -65,6 +103,10 @@ public class AuthService {
     private AuthResponse buildAuthResponse(User user) {
         String token = jwtService.generateToken(user);
 
+        //Buscar el perfil
+
+        Profiles profile = profilesRepository.findByUsuarioId(user.getId());
+
         return AuthResponse.builder()
                 .accessToken(token)
                 .tokenType("Bearer")
@@ -72,6 +114,8 @@ public class AuthService {
                 .userId(user.getId())
                 .email(user.getEmail())
                 .role(Role.valueOf(user.getRole().getName()))
+                .username(profile != null ? profile.getUsername() : null)
+                .fullName(profile != null ? profile.getFullName() : null)
                 .build();
     }
 }
