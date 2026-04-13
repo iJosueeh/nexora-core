@@ -60,7 +60,7 @@ public class AuthService {
         User savedUser = userRepository.save(user);
         //Perfil
         Profiles profile = new Profiles();
-        profile.setUsuarioId(savedUser.getId());
+        profile.setUser(savedUser);
         profile.setCarrera(null);
         profile.setUsername(request.getUsername());
         profile.setFullName(request.getFullName());
@@ -105,7 +105,7 @@ public class AuthService {
 
         //Buscar el perfil
 
-        Profiles profile = profilesRepository.findByUsuarioId(user.getId());
+        Profiles profile = profilesRepository.findByUser_Id(user.getId());
 
         return AuthResponse.builder()
                 .accessToken(token)

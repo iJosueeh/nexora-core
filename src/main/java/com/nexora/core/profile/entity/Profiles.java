@@ -2,11 +2,10 @@ package com.nexora.core.profile.entity;
 
 
 import com.nexora.core.common.entity.BaseEntity;
+import com.nexora.core.user.entity.User;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.util.UUID;
 
 @Entity
 @Getter
@@ -14,8 +13,9 @@ import java.util.UUID;
 @Table(name = "perfiles")
 public class Profiles extends BaseEntity {
 
-    @Column(name="usuario_id",unique = true, nullable = false)
-    private UUID usuarioId;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "usuario_id", unique = true, nullable = false)
+    private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name="carrera_id", nullable = true)
@@ -24,19 +24,19 @@ public class Profiles extends BaseEntity {
     @Column(name="username",unique = true, nullable = false)
     private String username;
 
-    @Column(name="full_name",unique = true, nullable = false)
+    @Column(name="full_name")
     private String fullName;
 
-    @Column(name="bio",unique = true, columnDefinition = "TEXT")
+    @Column(name="bio", columnDefinition = "TEXT")
     private String bio;
 
-    @Column(name="avatar_url",unique = true, columnDefinition = "TEXT")
+    @Column(name="avatar_url", columnDefinition = "TEXT")
     private String avatarUrl;
 
-    @Column(name="banner_url",unique = true, columnDefinition = "TEXT")
+    @Column(name="banner_url", columnDefinition = "TEXT")
     private String bannerUrl;
 
-    @Column(name="followers_count",unique = true)
+    @Column(name="followers_count")
     private int followersCount;
 
 
