@@ -6,7 +6,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -18,10 +17,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nexora.core.content.entity.Comment;
 import com.nexora.core.content.entity.Post;
 import com.nexora.core.content.repository.CommentRepository;
@@ -36,16 +33,12 @@ import com.nexora.core.user.repository.UserRepository;
 
 @SpringBootTest
 @ActiveProfiles("test")
-@Transactional
 class GraphQlQueriesIntegrationTest {
 
     private MockMvc mockMvc;
 
         @Autowired
         private WebApplicationContext webApplicationContext;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -70,6 +63,12 @@ class GraphQlQueriesIntegrationTest {
     @BeforeEach
     void setupRole() {
                 mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
+
+                commentRepository.deleteAll();
+                postRepository.deleteAll();
+                profilesRepository.deleteAll();
+                userRepository.deleteAll();
+
         studentRole = roleRepository.findByName(Role.ROLE_STUDENT.name()).orElseGet(() -> {
             Roles role = new Roles();
             role.setName(Role.ROLE_STUDENT.name());
@@ -123,7 +122,7 @@ class GraphQlQueriesIntegrationTest {
                 }
                 """;
 
-        String body = objectMapper.writeValueAsString(Map.of("query", query));
+        String body = graphQlBody(query);
 
         mockMvc.perform(post("/graphql")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -177,7 +176,7 @@ class GraphQlQueriesIntegrationTest {
                 }
                 """.formatted(post.getId());
 
-        String body = objectMapper.writeValueAsString(Map.of("query", query));
+        String body = graphQlBody(query);
 
         mockMvc.perform(post("/graphql")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -196,4 +195,13 @@ class GraphQlQueriesIntegrationTest {
         user.setRole(studentRole);
         return userRepository.save(user);
     }
+
+        private String graphQlBody(String query) {
+                String escapedQuery = query
+                                .replace("\\", "\\\\")
+                                .replace("\"", "\\\"")
+                                .replace("\r", "")
+                                .replace("\n", "\\n");
+                return "{\"query\":\"" + escapedQuery + "\"}";
+        }
 }
