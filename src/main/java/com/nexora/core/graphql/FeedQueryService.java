@@ -1,7 +1,8 @@
 package com.nexora.core.graphql;
 
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -32,7 +33,7 @@ public class FeedQueryService {
                     p.content AS contenido,
                     COALESCE(p.is_official, FALSE) AS is_official,
                     u.id AS autor_id,
-                    COALESCE(pf.username, split_part(u.email, '@', 1)) AS autor_username,
+                    pf.username AS autor_username,
                     pf.full_name AS autor_full_name,
                     pf.avatar_url AS autor_avatar_url
                 FROM posts p
@@ -81,10 +82,9 @@ public class FeedQueryService {
 
         List<CommentThreadView> comentarios = jdbcTemplate.query(sql, params, (rs, rowNum) -> {
             Timestamp rawCreatedAt = rs.getTimestamp("created_at");
-            String createdAt = null;
+            OffsetDateTime createdAt = null;
             if (rawCreatedAt != null) {
-                LocalDateTime createdAtValue = rawCreatedAt.toLocalDateTime();
-                createdAt = createdAtValue.toString();
+                createdAt = rawCreatedAt.toInstant().atOffset(ZoneOffset.UTC);
             }
 
             return new CommentThreadView(

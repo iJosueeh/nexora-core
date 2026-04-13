@@ -1,3 +1,5 @@
+scalar DateTime
+
 type Query {
   health: String!
   obtenerFeedPrincipal(limit: Int = 20, offset: Int = 0): [FeedPost!]!
@@ -14,7 +16,7 @@ type FeedPost {
 
 type FeedAuthor {
   usuarioId: ID!
-  username: String!
+  username: String
   fullName: String
   avatarUrl: String
 }
@@ -25,6 +27,6 @@ type CommentThread {
   parentId: ID
   autorId: ID!
   contenido: String!
-  createdAt: String
+  createdAt: DateTime
   respuestas: [CommentThread!]!
 }

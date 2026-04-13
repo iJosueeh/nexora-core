@@ -16,6 +16,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class NexoraQueryController {
 
+    private static final int MAX_OFFSET = 10_000;
+
     private final FeedQueryService feedQueryService;
 
     @QueryMapping
@@ -26,7 +28,7 @@ public class NexoraQueryController {
     @QueryMapping
     public List<FeedPostView> obtenerFeedPrincipal(@Argument Integer limit, @Argument Integer offset) {
         int safeLimit = limit == null ? 20 : Math.max(1, Math.min(limit, 100));
-        int safeOffset = offset == null ? 0 : Math.max(offset, 0);
+        int safeOffset = offset == null ? 0 : Math.max(0, Math.min(offset, MAX_OFFSET));
         return feedQueryService.obtenerFeedPrincipal(safeLimit, safeOffset);
     }
 

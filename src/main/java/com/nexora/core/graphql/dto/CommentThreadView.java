@@ -1,5 +1,6 @@
 package com.nexora.core.graphql.dto;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -11,10 +12,10 @@ public class CommentThreadView {
     private final UUID parentId;
     private final UUID autorId;
     private final String contenido;
-    private final String createdAt;
+    private final OffsetDateTime createdAt;
     private final List<CommentThreadView> respuestas = new ArrayList<>();
 
-    public CommentThreadView(UUID id, UUID postId, UUID parentId, UUID autorId, String contenido, String createdAt) {
+    public CommentThreadView(UUID id, UUID postId, UUID parentId, UUID autorId, String contenido, OffsetDateTime createdAt) {
         this.id = id;
         this.postId = postId;
         this.parentId = parentId;
@@ -43,7 +44,7 @@ public class CommentThreadView {
         return contenido;
     }
 
-    public String getCreatedAt() {
+    public OffsetDateTime getCreatedAt() {
         return createdAt;
     }
 
