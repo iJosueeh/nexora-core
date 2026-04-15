@@ -75,7 +75,7 @@ class AuthControllerIntegrationTest {
         assertEquals("Test User", response.getFullName());
 
         // Verify Database Persistence
-        Profiles profile = profilesRepository.findByUsuarioId(response.getUserId());
+        Profiles profile = profilesRepository.findByUser_Id(response.getUserId());
         assertNotNull(profile);
         assertEquals(username, profile.getUsername());
         assertEquals("Test User", profile.getFullName());

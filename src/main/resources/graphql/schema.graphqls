@@ -1,3 +1,32 @@
+scalar DateTime
+
 type Query {
   health: String!
+  obtenerFeedPrincipal(limit: Int = 20, offset: Int = 0): [FeedPost!]!
+  comentariosPorPost(postId: ID!): [CommentThread!]!
+}
+
+type FeedPost {
+  id: ID!
+  titulo: String
+  contenido: String!
+  isOfficial: Boolean!
+  autor: FeedAuthor!
+}
+
+type FeedAuthor {
+  usuarioId: ID!
+  username: String
+  fullName: String
+  avatarUrl: String
+}
+
+type CommentThread {
+  id: ID!
+  postId: ID!
+  parentId: ID
+  autorId: ID!
+  contenido: String!
+  createdAt: DateTime
+  respuestas: [CommentThread!]!
 }
