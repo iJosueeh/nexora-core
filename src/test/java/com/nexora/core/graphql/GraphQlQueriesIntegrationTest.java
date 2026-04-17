@@ -190,7 +190,6 @@ class GraphQlQueriesIntegrationTest {
     private User buildUser(String email) {
         User user = new User();
         user.setEmail(email);
-        user.setPassword("test-hash");
         user.setIsActive(true);
         user.setRole(studentRole);
         return userRepository.save(user);

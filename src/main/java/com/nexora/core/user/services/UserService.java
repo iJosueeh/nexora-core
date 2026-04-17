@@ -37,7 +37,7 @@ public class UserService {
     private UserResponse mapTUserResponse(User body) {
         return UserResponse.builder()
                 .id(body.getId())
-                .username(body.getEmail())
+                .username(body.getProfile() != null ? body.getProfile().getUsername() : body.getEmail())
                 .email(body.getEmail())
                 .isActive(body.getIsActive())
                 .role(Role.valueOf(body.getRole().getName()))

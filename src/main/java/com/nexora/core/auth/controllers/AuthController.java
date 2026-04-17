@@ -9,12 +9,16 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.nexora.core.auth.dto.AuthResponse;
 import com.nexora.core.auth.dto.LoginRequest;
-import com.nexora.core.auth.dto.RegisterRequest;
+import com.nexora.core.auth.dto.RegisterStartRequest;
+import com.nexora.core.auth.dto.RegisterUpdateRequest;
 import com.nexora.core.auth.services.AuthService;
 import com.nexora.core.common.response.ApiResponse;
+import com.nexora.core.user.entity.User;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -24,15 +28,29 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest request) {
-        AuthResponse authResponse = authService.register(request);
+    public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterStartRequest request) {
+        AuthResponse authResponse = authService.registerStart(request);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.<AuthResponse>builder()
                         .success(true)
-                        .message("User registered successfully")
+                        .message("User registration started")
                         .data(authResponse)
                         .build());
+    }
+
+    @PutMapping("/register")
+    public ResponseEntity<ApiResponse<AuthResponse>> completeRegistration(
+            @AuthenticationPrincipal User user,
+            @RequestBody @Valid RegisterUpdateRequest request) {
+        
+        AuthResponse authResponse = authService.completeRegistration(user, request);
+
+        return ResponseEntity.ok(ApiResponse.<AuthResponse>builder()
+                .success(true)
+                .message("Registration information updated")
+                .data(authResponse)
+                .build());
     }
 
     @PostMapping("/login")
