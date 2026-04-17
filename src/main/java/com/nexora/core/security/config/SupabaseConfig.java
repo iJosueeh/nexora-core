@@ -8,10 +8,10 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Configuration
 public class SupabaseConfig {
 
-    @Value("${supabase.url}")
+    @Value("${supabase.url:http://localhost}")
     private String supabaseUrl;
 
-    @Value("${supabase.key}")
+    @Value("${supabase.key:dummy-key}")
     private String supabaseKey;
 
     @Bean
