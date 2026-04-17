@@ -33,6 +33,10 @@ jwt:
   expiration: 900000
   refresh-expiration: 604800000
 
+supabase:
+  url: ${SUPABASE_URL}
+  key: ${SUPABASE_KEY}
+
 server:
   port: 8080
 

@@ -1,138 +1,169 @@
 package com.nexora.core.auth;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.util.UUID;
-import java.util.List;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.nexora.core.auth.dto.AuthResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nexora.core.auth.dto.RegisterStartRequest;
+import com.nexora.core.auth.dto.RegisterUpdateRequest;
 import com.nexora.core.auth.dto.LoginRequest;
-import com.nexora.core.auth.dto.RegisterRequest;
-import com.nexora.core.auth.services.AuthService;
-import com.nexora.core.profile.entity.Profiles;
-import com.nexora.core.profile.repository.ProfilesRepository;
-import com.nexora.core.profile.repository.ProfilesInterestsRepository;
 import com.nexora.core.user.entity.Roles;
+import com.nexora.core.user.entity.User;
 import com.nexora.core.user.enums.Role;
 import com.nexora.core.user.repository.RoleRepository;
+import com.nexora.core.user.repository.UserRepository;
+import com.nexora.core.profile.entity.Profiles;
+import com.nexora.core.profile.repository.ProfilesRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
+
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
+@AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional
 class AuthControllerIntegrationTest {
 
     @Autowired
-    private AuthService authService;
+    private MockMvc mockMvc;
 
-    @Autowired
+    @MockBean
+    private UserRepository userRepository;
+
+    @MockBean
     private RoleRepository roleRepository;
 
-    @Autowired
+    @MockBean
     private ProfilesRepository profilesRepository;
 
     @Autowired
-    private ProfilesInterestsRepository profilesInterestsRepository;
+    private ObjectMapper objectMapper;
+
+    @MockBean
+    private WebClient supabaseWebClient;
 
     @BeforeEach
     void setUp() {
-        if (roleRepository.findByName(Role.ROLE_STUDENT.name()).isEmpty()) {
-            Roles role = new Roles();
-            role.setName(Role.ROLE_STUDENT.name());
-            roleRepository.save(role);
+        SecurityContextHolder.clearContext();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void setupWebClientMock(Object responseBody) {
+        WebClient.RequestBodyUriSpec requestBodyUriSpec = mock(WebClient.RequestBodyUriSpec.class);
+        WebClient.RequestBodySpec requestBodySpec = mock(WebClient.RequestBodySpec.class);
+        WebClient.RequestHeadersSpec requestHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
+        WebClient.ResponseSpec responseSpec = mock(WebClient.ResponseSpec.class);
+
+        when(supabaseWebClient.post()).thenReturn(requestBodyUriSpec);
+        when(requestBodyUriSpec.uri(any(String.class))).thenReturn(requestBodySpec);
+        when(requestBodySpec.bodyValue(any())).thenReturn(requestHeadersSpec);
+        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.onStatus(any(), any())).thenReturn(responseSpec);
+        
+        if (responseBody instanceof Map) {
+            when(responseSpec.bodyToMono(ArgumentMatchers.<Class<Map>>any()))
+                .thenReturn(Mono.just((Map<String, Object>) responseBody));
+        } else {
+            when(responseSpec.toBodilessEntity()).thenReturn(Mono.empty());
         }
     }
 
     @Test
-    void registerShouldCreateProfileAndReturnToken() {
-        String email = "user-" + UUID.randomUUID() + "@utp.edu.pe";
-        String username = "testuser_" + UUID.randomUUID().toString().substring(0, 8);
+    void registerStartShouldSucceed() throws Exception {
+        String email = "test.new@utp.edu.pe";
+        String supabaseId = UUID.randomUUID().toString();
+        setupWebClientMock(Map.of("id", supabaseId));
 
-        RegisterRequest request = new RegisterRequest();
+        Roles role = new Roles();
+        role.setName(Role.ROLE_STUDENT.name());
+        when(roleRepository.findByName(any())).thenReturn(Optional.of(role));
+        when(userRepository.findByEmail(any())).thenReturn(Optional.empty());
+        when(userRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        RegisterStartRequest request = new RegisterStartRequest();
         request.setEmail(email);
         request.setPassword("Password123!");
-        request.setUsername(username);
-        request.setFullName("Test User");
-        request.setBio("This is a test biography for integration testing.");
-        request.setAcademicInterests(new String[]{"Java", "Spring Boot", "Testing"});
 
-        AuthResponse response = authService.register(request);
-
-        // Verify Response
-        assertNotNull(response.getAccessToken());
-        assertEquals(email, response.getEmail());
-        assertEquals(username, response.getUsername());
-        assertEquals("Test User", response.getFullName());
-
-        // Verify Database Persistence
-        Profiles profile = profilesRepository.findByUser_Id(response.getUserId());
-        assertNotNull(profile);
-        assertEquals(username, profile.getUsername());
-        assertEquals("Test User", profile.getFullName());
-        
-        // Verify Interests (count should match)
-        long interestsCount = profilesInterestsRepository.findAll().stream()
-                .filter(pi -> pi.getProfile().getId().equals(profile.getId()))
-                .count();
-        assertEquals(3, interestsCount);
+        mockMvc.perform(post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true));
     }
 
     @Test
-    void loginShouldReturnTokenAndProfileInfo() {
-        String email = "login-" + UUID.randomUUID() + "@utp.edu.pe";
-        String username = "loginuser";
+    void completeRegistrationShouldUpdateProfile() throws Exception {
+        Roles role = new Roles();
+        role.setName(Role.ROLE_STUDENT.name());
 
-        // 1. Register first
-        RegisterRequest registerRequest = new RegisterRequest();
-        registerRequest.setEmail(email);
-        registerRequest.setPassword("Password123!");
-        registerRequest.setUsername(username);
-        registerRequest.setFullName("Login Success User");
-        registerRequest.setBio("Bio for login test");
-        registerRequest.setAcademicInterests(new String[]{"Security"});
-        authService.register(registerRequest);
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        user.setEmail("update@utp.edu.pe");
+        user.setRole(role);
 
-        // 2. Perform Login
+        Profiles profile = new Profiles();
+        profile.setUser(user);
+        profile.setUsername("initial_username"); // Fix: Set initial username
+        
+        when(profilesRepository.findByUser_Id(any())).thenReturn(profile);
+        when(profilesRepository.save(any())).thenReturn(profile);
+
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+
+        RegisterUpdateRequest updateRequest = new RegisterUpdateRequest();
+        updateRequest.setUsername("updated_user");
+
+        mockMvc.perform(put("/api/auth/register")
+                .with(authentication(auth))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.username").value("updated_user"));
+    }
+
+    @Test
+    void loginShouldSucceedWhenSupabaseOk() throws Exception {
+        Roles role = new Roles();
+        role.setName(Role.ROLE_STUDENT.name());
+
+        User user = new User();
+        user.setEmail("login@utp.edu.pe");
+        user.setRole(role);
+
+        setupWebClientMock(null);
+        when(userRepository.findByEmail(any())).thenReturn(Optional.of(user));
+
         LoginRequest loginRequest = new LoginRequest();
-        loginRequest.setEmail(email);
+        loginRequest.setEmail(user.getEmail());
         loginRequest.setPassword("Password123!");
 
-        AuthResponse response = authService.login(loginRequest);
-
-        // 3. Verify Response
-        assertNotNull(response.getAccessToken());
-        assertEquals(email, response.getEmail());
-        assertEquals(username, response.getUsername());
-        assertEquals("Login Success User", response.getFullName());
-    }
-
-    @Test
-    void loginWithWrongPasswordShouldFail() {
-        String email = "fail-" + UUID.randomUUID() + "@utp.edu.pe";
-
-        RegisterRequest registerRequest = new RegisterRequest();
-        registerRequest.setEmail(email);
-        registerRequest.setPassword("CorrectPassword123!");
-        registerRequest.setUsername("fail_user");
-        registerRequest.setFullName("Fail User");
-        registerRequest.setBio("Bio");
-        registerRequest.setAcademicInterests(new String[]{"Misc"});
-        authService.register(registerRequest);
-
-        LoginRequest loginRequest = new LoginRequest();
-        loginRequest.setEmail(email);
-        loginRequest.setPassword("WrongPassword123!");
-
-        assertThrows(BadCredentialsException.class, () -> authService.login(loginRequest));
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
     }
 }

@@ -19,6 +19,10 @@ jwt:
   expiration: 900000
   refresh-expiration: 604800000
 
+supabase:
+  url: http://localhost
+  key: dummy-key
+
 logging:
   level:
     root: WARN
