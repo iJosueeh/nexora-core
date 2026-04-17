@@ -6,14 +6,12 @@ import com.nexora.core.profile.entity.ProfilesInterests;
 import com.nexora.core.profile.repository.AcademicInterestsRepository;
 import com.nexora.core.profile.repository.ProfilesInterestsRepository;
 import com.nexora.core.profile.repository.ProfilesRepository;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import com.nexora.core.auth.dto.*;
-import com.nexora.core.security.jwt.JwtService;
 import com.nexora.core.user.entity.Roles;
 import com.nexora.core.user.entity.User;
 import com.nexora.core.user.enums.Role;
@@ -22,6 +20,7 @@ import com.nexora.core.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -33,11 +32,7 @@ public class AuthService {
     private final ProfilesRepository profilesRepository;
     private final AcademicInterestsRepository academicInterestsRepository;
     private final ProfilesInterestsRepository profilesInterestsRepository;
-    private final JwtService jwtService;
     private final WebClient supabaseWebClient;
-
-    @Value("${jwt.expiration}")
-    private long expiration;
 
     public AuthResponse registerStart(RegisterStartRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -68,7 +63,7 @@ public class AuthService {
             throw new RuntimeException("Error registering in Supabase (Admin): " + e.getMessage());
         }
 
-        // 2. Register in local DB (or Update if trigger already created it)
+        // 2. Register in local DB
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseGet(() -> {
                     User newUser = new User();
@@ -85,7 +80,7 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
         
-        // 3. Initialize or Update empty profile
+        // 3. Initialize empty profile
         Profiles profile = profilesRepository.findByUser_Id(savedUser.getId());
         if (profile == null) {
             profile = new Profiles();
@@ -94,23 +89,34 @@ public class AuthService {
             profilesRepository.save(profile);
         }
 
-        return buildAuthResponse(savedUser);
+        // 4. AUTOMATIC LOGIN: Return tokens immediately so user can proceed to Step 2 & 3
+        return login(new LoginRequest() {{
+            setEmail(request.getEmail());
+            setPassword(request.getPassword());
+        }});
     }
 
-    public AuthResponse completeRegistration(User user, RegisterUpdateRequest request) {
+    public AuthResponse registerIdentity(User user, RegisterIdentityRequest request) {
         Profiles profile = profilesRepository.findByUser_Id(user.getId());
         if (profile == null) {
-            throw new RuntimeException("Profile not found for user");
+            throw new RuntimeException("Profile not found for user: " + user.getEmail());
         }
 
-        // Update identity if provided
-        if (request.getUsername() != null) profile.setUsername(request.getUsername());
-        if (request.getFullName() != null) profile.setFullName(request.getFullName());
-        if (request.getBio() != null) profile.setBio(request.getBio());
+        profile.setUsername(request.getUsername());
+        profile.setFullName(request.getFullName());
+        profile.setBio(request.getBio());
         
         profilesRepository.save(profile);
 
-        // Update preferences if provided
+        return buildMinimalAuthResponse(user);
+    }
+
+    public AuthResponse registerPreferences(User user, RegisterPreferencesRequest request) {
+        Profiles profile = profilesRepository.findByUser_Id(user.getId());
+        if (profile == null) {
+            throw new RuntimeException("Profile not found for user: " + user.getEmail());
+        }
+
         if (request.getAcademicInterests() != null && request.getAcademicInterests().length > 0) {
             profilesInterestsRepository.deleteByProfile(profile);
 
@@ -129,13 +135,13 @@ public class AuthService {
             }
         }
 
-        return buildAuthResponse(user);
+        return buildMinimalAuthResponse(user);
     }
 
     public AuthResponse login(LoginRequest request) {
-        // 1. Authenticate with Supabase
+        Map<String, Object> supabaseResponse;
         try {
-            supabaseWebClient.post()
+            supabaseResponse = supabaseWebClient.post()
                 .uri("/token?grant_type=password")
                 .bodyValue(Map.of(
                     "email", request.getEmail(),
@@ -147,34 +153,75 @@ public class AuthService {
                         new RuntimeException("Login failed in Supabase: " + (body.get("error_description") != null ? body.get("error_description") : body.get("error")))
                     )
                 )
-                .toBodilessEntity()
+                .bodyToMono(Map.class)
                 .block();
         } catch (Exception e) {
             throw new RuntimeException("Authentication failed: " + e.getMessage());
         }
 
-        // 2. If Supabase is happy, find local user and issue our JWT
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found in local database"));
 
-        return buildAuthResponse(user);
+        return buildAuthResponse(user, supabaseResponse);
     }
 
-    private AuthResponse buildAuthResponse(User user) {
-        String token = jwtService.generateToken(user);
+    public AuthResponse refresh(RefreshRequest request) {
+        Map<String, Object> supabaseResponse;
+        try {
+            supabaseResponse = supabaseWebClient.post()
+                .uri("/token?grant_type=refresh_token")
+                .bodyValue(Map.of(
+                    "refresh_token", request.getRefreshToken()
+                ))
+                .retrieve()
+                .onStatus(status -> status.isError(), response -> 
+                    response.bodyToMono(Map.class).map(body -> 
+                        new RuntimeException("Refresh failed in Supabase: " + (body.get("error_description") != null ? body.get("error_description") : body.get("error")))
+                    )
+                )
+                .bodyToMono(Map.class)
+                .block();
+        } catch (Exception e) {
+            throw new RuntimeException("Token refresh failed: " + e.getMessage());
+        }
 
-        //Buscar el perfil
+        Map<String, Object> userMap = (Map<String, Object>) supabaseResponse.get("user");
+        String email = (String) userMap.get("email");
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found in local database after refresh"));
+
+        return buildAuthResponse(user, supabaseResponse);
+    }
+
+    private AuthResponse buildAuthResponse(User user, Map<String, Object> supabaseResponse) {
         Profiles profile = profilesRepository.findByUser_Id(user.getId());
+        boolean profileComplete = profile != null && profile.getCarrera() != null;
 
         return AuthResponse.builder()
-                .accessToken(token)
-                .tokenType("Bearer")
-                .expiresIn(expiration)
-                .userId(user.getId())
-                .email(user.getEmail())
-                .role(Role.valueOf(user.getRole().getName()))
-                .username(profile != null ? profile.getUsername() : null)
-                .fullName(profile != null ? profile.getFullName() : null)
+                .accessToken((String) supabaseResponse.get("access_token"))
+                .refreshToken((String) supabaseResponse.get("refresh_token"))
+                .expiresIn(((Number) supabaseResponse.get("expires_in")).longValue())
+                .user(AuthResponse.UserData.builder()
+                        .id(user.getId())
+                        .email(user.getEmail())
+                        .username(profile != null ? profile.getUsername() : null)
+                        .profileComplete(profileComplete)
+                        .build())
+                .build();
+    }
+
+    private AuthResponse buildMinimalAuthResponse(User user) {
+        Profiles profile = profilesRepository.findByUser_Id(user.getId());
+        boolean profileComplete = profile != null && profile.getCarrera() != null;
+        
+        return AuthResponse.builder()
+                .user(AuthResponse.UserData.builder()
+                        .id(user.getId())
+                        .email(user.getEmail())
+                        .username(profile != null ? profile.getUsername() : null)
+                        .profileComplete(profileComplete)
+                        .build())
                 .build();
     }
 }

@@ -10,9 +10,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.nexora.core.auth.dto.AuthResponse;
 import com.nexora.core.auth.dto.LoginRequest;
 import com.nexora.core.auth.dto.RegisterStartRequest;
-import com.nexora.core.auth.dto.RegisterUpdateRequest;
+import com.nexora.core.auth.dto.RegisterIdentityRequest;
+import com.nexora.core.auth.dto.RegisterPreferencesRequest;
+import com.nexora.core.auth.dto.RefreshRequest;
 import com.nexora.core.auth.services.AuthService;
-import com.nexora.core.common.response.ApiResponse;
 import com.nexora.core.user.entity.User;
 
 import jakarta.validation.Valid;
@@ -21,46 +22,48 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
     private final AuthService authService;
 
+    // Step 1: Account (Public - Returns Tokens)
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterStartRequest request) {
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterStartRequest request) {
         AuthResponse authResponse = authService.registerStart(request);
-
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.<AuthResponse>builder()
-                        .success(true)
-                        .message("User registration started")
-                        .data(authResponse)
-                        .build());
+        return ResponseEntity.status(HttpStatus.CREATED).body(authResponse);
     }
 
-    @PutMapping("/register")
-    public ResponseEntity<ApiResponse<AuthResponse>> completeRegistration(
+    // Step 2: Identity (Protected - Requires Token from Step 1)
+    @PutMapping("/register/identity")
+    public ResponseEntity<AuthResponse> registerIdentity(
             @AuthenticationPrincipal User user,
-            @RequestBody @Valid RegisterUpdateRequest request) {
-        
-        AuthResponse authResponse = authService.completeRegistration(user, request);
-
-        return ResponseEntity.ok(ApiResponse.<AuthResponse>builder()
-                .success(true)
-                .message("Registration information updated")
-                .data(authResponse)
-                .build());
+            @Valid @RequestBody RegisterIdentityRequest request) {
+        AuthResponse authResponse = authService.registerIdentity(user, request);
+        return ResponseEntity.ok(authResponse);
     }
 
-    @PostMapping("/login")
-    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
-        AuthResponse authResponse = authService.login(request);
+    // Step 3: Preferences (Protected - Requires Token from Step 1)
+    @PutMapping("/register/preferences")
+    public ResponseEntity<AuthResponse> registerPreferences(
+            @AuthenticationPrincipal User user,
+            @Valid @RequestBody RegisterPreferencesRequest request) {
+        AuthResponse authResponse = authService.registerPreferences(user, request);
+        return ResponseEntity.ok(authResponse);
+    }
 
-        return ResponseEntity.ok(ApiResponse.<AuthResponse>builder()
-                .success(true)
-                .message("Login successful")
-                .data(authResponse)
-                .build());
+    // Login (Public)
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        AuthResponse authResponse = authService.login(request);
+        return ResponseEntity.ok(authResponse);
+    }
+
+    // Refresh Token (Public)
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshRequest request) {
+        AuthResponse authResponse = authService.refresh(request);
+        return ResponseEntity.ok(authResponse);
     }
 }

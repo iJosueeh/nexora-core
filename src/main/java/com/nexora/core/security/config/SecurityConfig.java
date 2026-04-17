@@ -59,6 +59,9 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
+                    auth.requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/auth/register").permitAll();
+                    auth.requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/auth/login").permitAll();
+                    auth.requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/auth/refresh").permitAll();
                     auth.requestMatchers("/api/auth/**").permitAll();
                     if (publicDocsEnabled) {
                         auth.requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll();
