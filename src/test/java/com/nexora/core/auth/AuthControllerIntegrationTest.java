@@ -1,41 +1,40 @@
 package com.nexora.core.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nexora.core.auth.dto.RegisterStartRequest;
 import com.nexora.core.auth.dto.RegisterUpdateRequest;
-import com.nexora.core.auth.dto.LoginRequest;
+import com.nexora.core.profile.entity.AcademicInterests;
+import com.nexora.core.profile.entity.Courses;
+import com.nexora.core.profile.entity.Profiles;
+import com.nexora.core.profile.entity.ProfilesInterests;
+import com.nexora.core.profile.repository.AcademicInterestsRepository;
+import com.nexora.core.profile.repository.CoursesRepository;
+import com.nexora.core.profile.repository.ProfilesInterestsRepository;
+import com.nexora.core.profile.repository.ProfilesRepository;
 import com.nexora.core.user.entity.Roles;
 import com.nexora.core.user.entity.User;
 import com.nexora.core.user.enums.Role;
 import com.nexora.core.user.repository.RoleRepository;
 import com.nexora.core.user.repository.UserRepository;
-import com.nexora.core.profile.entity.Profiles;
-import com.nexora.core.profile.repository.ProfilesRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentMatchers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
-import java.util.Map;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -49,6 +48,9 @@ class AuthControllerIntegrationTest {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @MockBean
     private UserRepository userRepository;
 
@@ -58,63 +60,40 @@ class AuthControllerIntegrationTest {
     @MockBean
     private ProfilesRepository profilesRepository;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    @MockBean
+    private CoursesRepository coursesRepository;
 
     @MockBean
-    private WebClient supabaseWebClient;
+    private AcademicInterestsRepository academicInterestsRepository;
+
+    @MockBean
+    private ProfilesInterestsRepository profilesInterestsRepository;
 
     @BeforeEach
     void setUp() {
         SecurityContextHolder.clearContext();
     }
 
-    @SuppressWarnings("unchecked")
-    private void setupWebClientMock(Object responseBody) {
-        WebClient.RequestBodyUriSpec requestBodyUriSpec = mock(WebClient.RequestBodyUriSpec.class);
-        WebClient.RequestBodySpec requestBodySpec = mock(WebClient.RequestBodySpec.class);
-        WebClient.RequestHeadersSpec requestHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec responseSpec = mock(WebClient.ResponseSpec.class);
+    @Test
+    void catalogsShouldReturnCareersAndInterests() throws Exception {
+        Courses course = new Courses();
+        course.setName("Ingenieria de Sistemas");
 
-        when(supabaseWebClient.post()).thenReturn(requestBodyUriSpec);
-        when(requestBodyUriSpec.uri(any(String.class))).thenReturn(requestBodySpec);
-        when(requestBodySpec.bodyValue(any())).thenReturn(requestHeadersSpec);
-        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.onStatus(any(), any())).thenReturn(responseSpec);
-        
-        if (responseBody instanceof Map) {
-            when(responseSpec.bodyToMono(ArgumentMatchers.<Class<Map>>any()))
-                .thenReturn(Mono.just((Map<String, Object>) responseBody));
-        } else {
-            when(responseSpec.toBodilessEntity()).thenReturn(Mono.empty());
-        }
+        AcademicInterests interest = new AcademicInterests();
+        interest.setName("IA");
+
+        when(coursesRepository.findAllByOrderByNameAsc()).thenReturn(List.of(course));
+        when(academicInterestsRepository.findAllByOrderByNameAsc()).thenReturn(List.of(interest));
+
+        mockMvc.perform(get("/api/auth/catalogs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.careers[0]").value("Ingenieria de Sistemas"))
+                .andExpect(jsonPath("$.data.academicInterests[0]").value("IA"));
     }
 
     @Test
-    void registerStartShouldSucceed() throws Exception {
-        String email = "test.new@utp.edu.pe";
-        String supabaseId = UUID.randomUUID().toString();
-        setupWebClientMock(Map.of("id", supabaseId));
-
-        Roles role = new Roles();
-        role.setName(Role.ROLE_STUDENT.name());
-        when(roleRepository.findByName(any())).thenReturn(Optional.of(role));
-        when(userRepository.findByEmail(any())).thenReturn(Optional.empty());
-        when(userRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-
-        RegisterStartRequest request = new RegisterStartRequest();
-        request.setEmail(email);
-        request.setPassword("Password123!");
-
-        mockMvc.perform(post("/api/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.success").value(true));
-    }
-
-    @Test
-    void completeRegistrationShouldUpdateProfile() throws Exception {
+    void completeRegistrationShouldUpdateProfileAndInterests() throws Exception {
         Roles role = new Roles();
         role.setName(Role.ROLE_STUDENT.name());
 
@@ -122,21 +101,36 @@ class AuthControllerIntegrationTest {
         user.setId(UUID.randomUUID());
         user.setEmail("update@utp.edu.pe");
         user.setRole(role);
+        user.setIsActive(true);
 
         Profiles profile = new Profiles();
         profile.setUser(user);
-        profile.setUsername("initial_username"); // Fix: Set initial username
-        
-        when(profilesRepository.findByUser_Id(any())).thenReturn(profile);
-        when(profilesRepository.save(any())).thenReturn(profile);
+        profile.setUsername("initial_username");
+        profile.setFullName("Nombre Inicial");
+        profile.setBio("bio inicial");
 
-        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+        Courses course = new Courses();
+        course.setName("Ingenieria de Software");
+
+        AcademicInterests interest = new AcademicInterests();
+        interest.setName("Cloud");
+
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(profilesRepository.findByUser_Id(user.getId())).thenReturn(profile);
+        when(coursesRepository.findByNameIgnoreCase("Ingenieria de Software")).thenReturn(Optional.of(course));
+        when(academicInterestsRepository.findByName("Cloud")).thenReturn(Optional.of(interest));
+        when(profilesRepository.save(any(Profiles.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(profilesInterestsRepository.save(any(ProfilesInterests.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         RegisterUpdateRequest updateRequest = new RegisterUpdateRequest();
         updateRequest.setUsername("updated_user");
+        updateRequest.setFullName("Usuario Actualizado");
+        updateRequest.setBio("Biografia actualizada");
+        updateRequest.setCareer("Ingenieria de Software");
+        updateRequest.setAcademicInterests(new String[]{"Cloud"});
 
         mockMvc.perform(put("/api/auth/register")
-                .with(authentication(auth))
+                .with(jwt().jwt(jwt -> jwt.subject(user.getId().toString()).claim("email", user.getEmail())))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isOk())
@@ -145,25 +139,31 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    void loginShouldSucceedWhenSupabaseOk() throws Exception {
+    void sessionShouldResolveCurrentUser() throws Exception {
         Roles role = new Roles();
         role.setName(Role.ROLE_STUDENT.name());
 
         User user = new User();
-        user.setEmail("login@utp.edu.pe");
+        user.setId(UUID.randomUUID());
+        user.setEmail("session.user@utp.edu.pe");
         user.setRole(role);
+        user.setIsActive(true);
 
-        setupWebClientMock(null);
-        when(userRepository.findByEmail(any())).thenReturn(Optional.of(user));
+        Profiles profile = new Profiles();
+        profile.setUser(user);
+        profile.setUsername("session.user");
+        profile.setFullName("Session User");
+        profile.setBio("Bio session");
 
-        LoginRequest loginRequest = new LoginRequest();
-        loginRequest.setEmail(user.getEmail());
-        loginRequest.setPassword("Password123!");
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(profilesRepository.findByUser_Id(user.getId())).thenReturn(profile);
+        when(profilesInterestsRepository.countByProfile(profile)).thenReturn(1L);
 
-        mockMvc.perform(post("/api/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loginRequest)))
+        mockMvc.perform(get("/api/auth/session")
+                .with(jwt().jwt(jwt -> jwt.subject(user.getId().toString()).claim("email", user.getEmail()))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.email").value(user.getEmail()));
     }
 }
