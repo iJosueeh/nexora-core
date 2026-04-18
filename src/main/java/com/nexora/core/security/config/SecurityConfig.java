@@ -57,6 +57,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
                     auth.requestMatchers(HttpMethod.GET, "/api/auth/catalogs").permitAll();
+                    auth.requestMatchers(HttpMethod.GET, "/api/auth/public-profile/**").permitAll();
                     if (publicDocsEnabled) {
                         auth.requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll();
                     }
