@@ -3,7 +3,7 @@ package com.nexora.core.graphql.dto;
 import java.util.UUID;
 
 public record FeedAuthorView(
-        UUID usuarioId,
+        UUID id,
         String username,
         String fullName,
         String avatarUrl) {

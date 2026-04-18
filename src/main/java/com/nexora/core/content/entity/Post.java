@@ -8,6 +8,8 @@ import com.nexora.core.common.entity.AuditableBaseEntity;
 import com.nexora.core.user.entity.User;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
@@ -41,6 +43,14 @@ public class Post extends AuditableBaseEntity {
 
     @Column(name = "status")
     private String status = "PUBLISHED";
+
+    @Column(name = "location")
+    private String location;
+
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "post_tags", joinColumns = @JoinColumn(name = "post_id"))
+    @Column(name = "tag", nullable = false)
+    private List<String> tags = new ArrayList<>();
 
     @OneToMany(mappedBy = "post", fetch = FetchType.LAZY)
     private List<Comment> comentarios = new ArrayList<>();
