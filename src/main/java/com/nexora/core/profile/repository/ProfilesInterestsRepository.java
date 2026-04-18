@@ -10,4 +10,6 @@ import java.util.UUID;
 @Repository
 public interface ProfilesInterestsRepository extends JpaRepository<ProfilesInterests, UUID> {
     void deleteByProfile(Profiles profile);
+
+    long countByProfile(Profiles profile);
 }

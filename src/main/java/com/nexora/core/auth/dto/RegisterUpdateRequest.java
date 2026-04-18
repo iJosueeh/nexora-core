@@ -14,6 +14,12 @@ public class RegisterUpdateRequest {
     @Size(max = 255)
     private String bio;
 
+    @Size(max = 120)
+    private String career;
+
     // Step 3 Fields
     private String[] academicInterests;
+
+    // Frontend compatibility alias for step 3 payload.
+    private String[] selectedInterests;
 }

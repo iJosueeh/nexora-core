@@ -27,6 +27,12 @@ spring:
     graphiql:
       enabled: ${GRAPHQL_GRAPHIQL_ENABLED:true}
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${SUPABASE_URL}/auth/v1
+
 jwt:
   secret: ${JWT_SECRET}
   refresh-secret: ${JWT_REFRESH_SECRET}
@@ -55,7 +61,7 @@ app:
   graphql:
     public-enabled: ${APP_GRAPHQL_PUBLIC_ENABLED:true}
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200,http://localhost:3000,http://localhost:5173}
     allowed-methods: ${CORS_ALLOWED_METHODS:GET,POST,PUT,PATCH,DELETE,OPTIONS}
     allowed-headers: ${CORS_ALLOWED_HEADERS:*}
     exposed-headers: ${CORS_EXPOSED_HEADERS:Authorization}
