@@ -1,5 +1,6 @@
 package com.nexora.core.auth.dto;
 
+import java.util.List;
 import java.util.UUID;
 
 import com.nexora.core.user.enums.Role;
@@ -19,5 +20,11 @@ public class AuthResponse {
 
     private String username;
     private String fullName;
+    private String bio;
+    private String career;
+    private String avatarUrl;
+    private String bannerUrl;
+    private Integer followersCount;
+    private List<String> academicInterests;
     private Boolean profileComplete;
 }

@@ -105,9 +105,37 @@ public class AuthService {
         return buildSessionResponse(user);
     }
 
+    public AuthResponse resolvePublicProfile(String username) {
+        Profiles profile = profilesRepository.findByUsernameIgnoreCase(username)
+                .orElseThrow(() -> new UsernameNotFoundException("Profile not found"));
+
+        User user = profile.getUser();
+        long interestsCount = profilesInterestsRepository.countByProfile(profile);
+        List<String> academicInterests = mapAcademicInterests(profile);
+
+        return AuthResponse.builder()
+                .accessToken(null)
+                .tokenType(null)
+                .expiresIn(0)
+                .userId(user.getId())
+                .email(user.getEmail())
+                .role(user.getRole() != null ? Role.valueOf(user.getRole().getName()) : null)
+                .username(profile.getUsername())
+                .fullName(profile.getFullName())
+                .bio(profile.getBio())
+                .career(profile.getCarrera() != null ? profile.getCarrera().getName() : null)
+                .avatarUrl(profile.getAvatarUrl())
+                .bannerUrl(profile.getBannerUrl())
+                .followersCount(profile.getFollowersCount())
+                .academicInterests(academicInterests)
+                .profileComplete(isProfileComplete(profile, interestsCount))
+                .build();
+    }
+
     private AuthResponse buildSessionResponse(User user) {
         Profiles profile = profilesRepository.findByUser_Id(user.getId());
         long interestsCount = profile == null ? 0 : profilesInterestsRepository.countByProfile(profile);
+        List<String> academicInterests = mapAcademicInterests(profile);
 
         return AuthResponse.builder()
                 .accessToken(null)
@@ -118,8 +146,23 @@ public class AuthService {
                 .role(Role.valueOf(user.getRole().getName()))
                 .username(profile != null ? profile.getUsername() : null)
                 .fullName(profile != null ? profile.getFullName() : null)
+            .bio(profile != null ? profile.getBio() : null)
+            .career(profile != null && profile.getCarrera() != null ? profile.getCarrera().getName() : null)
+            .avatarUrl(profile != null ? profile.getAvatarUrl() : null)
+            .bannerUrl(profile != null ? profile.getBannerUrl() : null)
+            .followersCount(profile != null ? profile.getFollowersCount() : 0)
+            .academicInterests(academicInterests)
                 .profileComplete(isProfileComplete(profile, interestsCount))
                 .build();
+    }
+
+    private List<String> mapAcademicInterests(Profiles profile) {
+        if (profile == null) return List.of();
+
+        return profilesInterestsRepository.findAllByProfile(profile)
+                .stream()
+                .map(relation -> relation.getInteres().getName())
+                .toList();
     }
 
     private User upsertUserFromSupabase(String email, String supabaseUserId) {

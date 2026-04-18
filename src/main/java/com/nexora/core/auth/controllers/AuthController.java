@@ -62,4 +62,15 @@ public class AuthController {
                 .data(authResponse)
                 .build());
     }
+
+    @GetMapping("/public-profile/{username}")
+    public ResponseEntity<ApiResponse<AuthResponse>> publicProfile(@PathVariable String username) {
+        AuthResponse authResponse = authService.resolvePublicProfile(username);
+
+        return ResponseEntity.ok(ApiResponse.<AuthResponse>builder()
+                .success(true)
+                .message("Public profile resolved")
+                .data(authResponse)
+                .build());
+    }
 }
