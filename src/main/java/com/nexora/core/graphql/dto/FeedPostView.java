@@ -1,5 +1,7 @@
 package com.nexora.core.graphql.dto;
 
+import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public record FeedPostView(
@@ -7,5 +9,9 @@ public record FeedPostView(
         String titulo,
         String contenido,
         boolean isOfficial,
-        FeedAuthorView autor) {
+        OffsetDateTime createdAt,
+        int commentsCount,
+        FeedAuthorView autor,
+        List<String> tags,
+        String location) {
 }

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Controller;
 
 import com.nexora.core.graphql.dto.CommentThreadView;
 import com.nexora.core.graphql.dto.FeedPostView;
+import com.nexora.core.graphql.dto.TagSuggestionView;
 
 import lombok.RequiredArgsConstructor;
 
@@ -17,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 public class NexoraQueryController {
 
     private static final int MAX_OFFSET = 10_000;
+    private static final int MAX_TAG_LIMIT = 30;
 
     private final FeedQueryService feedQueryService;
 
@@ -35,5 +37,12 @@ public class NexoraQueryController {
     @QueryMapping
     public List<CommentThreadView> comentariosPorPost(@Argument UUID postId) {
         return feedQueryService.obtenerHilosComentarios(postId);
+    }
+
+    @QueryMapping
+    public List<TagSuggestionView> availableTags(@Argument String search, @Argument Integer limit) {
+        int safeLimit = limit == null ? 12 : Math.max(1, Math.min(limit, MAX_TAG_LIMIT));
+        String safeSearch = search == null ? "" : search.trim().toLowerCase();
+        return feedQueryService.obtenerTagsDisponibles(safeSearch, safeLimit);
     }
 }

@@ -4,6 +4,18 @@ type Query {
   health: String!
   obtenerFeedPrincipal(limit: Int = 20, offset: Int = 0): [FeedPost!]!
   comentariosPorPost(postId: ID!): [CommentThread!]!
+  availableTags(search: String = "", limit: Int = 12): [TagSuggestion!]!
+}
+
+type Mutation {
+  crearPublicacion(input: CreatePublicationInput!): FeedPost!
+}
+
+input CreatePublicationInput {
+  titulo: String
+  contenido: String!
+  tags: [String!]
+  location: String
 }
 
 type FeedPost {
@@ -11,11 +23,15 @@ type FeedPost {
   titulo: String
   contenido: String!
   isOfficial: Boolean!
+  createdAt: DateTime
+  commentsCount: Int!
   autor: FeedAuthor!
+  tags: [String!]!
+  location: String
 }
 
 type FeedAuthor {
-  usuarioId: ID!
+  id: ID!
   username: String
   fullName: String
   avatarUrl: String
@@ -29,4 +45,10 @@ type CommentThread {
   contenido: String!
   createdAt: DateTime
   respuestas: [CommentThread!]!
+}
+
+type TagSuggestion {
+  id: ID!
+  name: String!
+  usageCount: Int!
 }
