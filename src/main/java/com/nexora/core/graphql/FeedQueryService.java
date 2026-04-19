@@ -27,28 +27,30 @@ public class FeedQueryService {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private static final List<String> TAG_COLUMN_CANDIDATES = List.of("tag", "tag_name", "tags", "name");
+    private static final String FEED_SELECT_BASE_SQL = """
+            SELECT
+                p.id,
+                p.titulo,
+                p.content AS contenido,
+                p.location,
+                COALESCE(p.is_official, FALSE) AS is_official,
+                p.created_at,
+                (
+                    SELECT COUNT(*)
+                    FROM comentarios c
+                    WHERE c.post_id = p.id
+                ) AS comments_count,
+                u.id AS autor_id,
+                pf.username AS autor_username,
+                pf.full_name AS autor_full_name,
+                pf.avatar_url AS autor_avatar_url
+            FROM posts p
+            JOIN usuarios u ON u.id = p.autor_id
+            LEFT JOIN perfiles pf ON pf.usuario_id = u.id
+            """;
 
     public List<FeedPostView> obtenerFeedPrincipal(int limit, int offset) {
-        String sql = """
-                SELECT
-                    p.id,
-                    p.titulo,
-                    p.content AS contenido,
-                    p.location,
-                    COALESCE(p.is_official, FALSE) AS is_official,
-                    p.created_at,
-                    (
-                        SELECT COUNT(*)
-                        FROM comentarios c
-                        WHERE c.post_id = p.id
-                    ) AS comments_count,
-                    u.id AS autor_id,
-                    pf.username AS autor_username,
-                    pf.full_name AS autor_full_name,
-                    pf.avatar_url AS autor_avatar_url
-                FROM posts p
-                JOIN usuarios u ON u.id = p.autor_id
-                LEFT JOIN perfiles pf ON pf.usuario_id = u.id
+        String sql = FEED_SELECT_BASE_SQL + """
                 ORDER BY p.created_at DESC
                 LIMIT :limit OFFSET :offset
                 """;
@@ -56,6 +58,27 @@ public class FeedQueryService {
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("limit", limit)
                 .addValue("offset", offset);
+
+        return fetchFeedPosts(sql, params);
+    }
+
+    public List<FeedPostView> obtenerPublicacionesPorUsuario(String username, int limit, int offset) {
+        String sql = FEED_SELECT_BASE_SQL + """
+                WHERE LOWER(COALESCE(pf.username, '')) = :username
+                   OR LOWER(SPLIT_PART(COALESCE(u.email, ''), '@', 1)) = :username
+                ORDER BY p.created_at DESC
+                LIMIT :limit OFFSET :offset
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("username", username)
+                .addValue("limit", limit)
+                .addValue("offset", offset);
+
+        return fetchFeedPosts(sql, params);
+    }
+
+    private List<FeedPostView> fetchFeedPosts(String sql, MapSqlParameterSource params) {
 
         List<FeedPostView> posts = jdbcTemplate.query(sql, params, (rs, rowNum) -> {
             Timestamp rawCreatedAt = rs.getTimestamp("created_at");

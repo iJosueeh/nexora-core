@@ -3,6 +3,7 @@ scalar DateTime
 type Query {
   health: String!
   obtenerFeedPrincipal(limit: Int = 20, offset: Int = 0): [FeedPost!]!
+  publicacionesPorUsuario(username: String!, limit: Int = 20, offset: Int = 0): [FeedPost!]!
   comentariosPorPost(postId: ID!): [CommentThread!]!
   availableTags(search: String = "", limit: Int = 12): [TagSuggestion!]!
 }
