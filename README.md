@@ -153,6 +153,40 @@ Protegidos con JWT:
 
 Los tests usan perfil `test` con H2 en memoria.
 
+## Deploy en Render
+
+Este repositorio incluye [render.yaml](render.yaml) para desplegar el backend en Render.
+
+### Configuracion recomendada
+
+- Runtime: `Java`
+- Build command: `./mvnw -DskipTests clean package`
+- Start command: `java -jar target/nexora-core-0.0.1-SNAPSHOT.jar`
+- Health check path: `/actuator/health`
+
+El backend toma el puerto automaticamente desde `PORT`:
+
+- [src/main/resources/application.yml](src/main/resources/application.yml)
+  - `server.port: ${PORT:8080}`
+
+### Variables de entorno obligatorias en Render
+
+- `DB_URL`
+- `DB_USERNAME`
+- `DB_PASSWORD`
+- `JWT_SECRET`
+- `JWT_REFRESH_SECRET`
+- `SUPABASE_URL`
+- `SUPABASE_KEY`
+- `CORS_ALLOWED_ORIGINS`
+
+### Variables recomendadas
+
+- `SPRING_PROFILES_ACTIVE=prod`
+- `APP_DOCS_PUBLIC_ENABLED=false`
+- `APP_GRAPHQL_PUBLIC_ENABLED=true`
+- `GRAPHQL_GRAPHIQL_ENABLED=false`
+
 ## Frontend (referencia del proyecto general)
 
 Stack del frontend de Nexora:

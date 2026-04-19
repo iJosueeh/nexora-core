@@ -56,6 +56,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+                    auth.requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll();
                     auth.requestMatchers(HttpMethod.GET, "/api/auth/catalogs").permitAll();
                     auth.requestMatchers(HttpMethod.GET, "/api/auth/public-profile/**").permitAll();
                     if (publicDocsEnabled) {
