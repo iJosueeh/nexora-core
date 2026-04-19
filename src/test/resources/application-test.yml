@@ -13,11 +13,21 @@ spring:
       hibernate:
         "[format_sql]": false
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost/auth/v1
+
 jwt:
   secret: test-secret-key-for-jwt-signing-test-secret-key-12345
   refresh-secret: test-refresh-secret-key-for-jwt-signing-1234567
   expiration: 900000
   refresh-expiration: 604800000
+
+supabase:
+  url: http://localhost
+  key: dummy-key
 
 logging:
   level:
