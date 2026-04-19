@@ -35,6 +35,20 @@ public class NexoraQueryController {
     }
 
     @QueryMapping
+    public List<FeedPostView> publicacionesPorUsuario(@Argument String username, @Argument Integer limit,
+            @Argument Integer offset) {
+        int safeLimit = limit == null ? 20 : Math.max(1, Math.min(limit, 100));
+        int safeOffset = offset == null ? 0 : Math.max(0, Math.min(offset, MAX_OFFSET));
+        String safeUsername = username == null ? "" : username.trim().toLowerCase();
+
+        if (safeUsername.isBlank()) {
+            return List.of();
+        }
+
+        return feedQueryService.obtenerPublicacionesPorUsuario(safeUsername, safeLimit, safeOffset);
+    }
+
+    @QueryMapping
     public List<CommentThreadView> comentariosPorPost(@Argument UUID postId) {
         return feedQueryService.obtenerHilosComentarios(postId);
     }
