@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: nexora-core
+    runtime: java
+    plan: free
+    rootDir: nexora-core
+    buildCommand: ./mvnw -DskipTests clean package
+    startCommand: java -jar target/nexora-core-0.0.1-SNAPSHOT.jar
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: APP_DOCS_PUBLIC_ENABLED
+        value: "false"
+      - key: APP_GRAPHQL_PUBLIC_ENABLED
+        value: "true"
+      - key: GRAPHQL_GRAPHIQL_ENABLED
+        value: "false"
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
