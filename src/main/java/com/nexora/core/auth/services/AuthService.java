@@ -285,10 +285,7 @@ public class AuthService {
         }
 
         return isFilled(profile.getUsername())
-                && isFilled(profile.getFullName())
-                && isFilled(profile.getBio())
-                && profile.getCarrera() != null
-                && interestsCount > 0;
+                && isFilled(profile.getFullName());
     }
 
     private String[] resolveIncomingInterests(RegisterUpdateRequest request) {
