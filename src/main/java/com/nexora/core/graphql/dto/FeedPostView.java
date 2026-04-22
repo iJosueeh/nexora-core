@@ -13,5 +13,6 @@ public record FeedPostView(
         int commentsCount,
         FeedAuthorView autor,
         List<String> tags,
-        String location) {
+        String location,
+        String imageUrl) {
 }

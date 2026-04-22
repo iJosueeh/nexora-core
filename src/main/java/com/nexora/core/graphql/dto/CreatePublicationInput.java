@@ -6,5 +6,6 @@ public record CreatePublicationInput(
         String titulo,
         String contenido,
         List<String> tags,
-        String location) {
+        String location,
+        String imageUrl) {
 }

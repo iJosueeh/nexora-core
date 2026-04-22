@@ -52,6 +52,7 @@ public class FeedMutationService {
         post.setContent(content);
         post.setLocation(resolveLocation(input.location()));
         post.setTags(resolveTags(input.tags()));
+        post.setImageUrl(input.imageUrl());
         post.setIsOfficial(false);
         post.setStatus("PUBLISHED");
 
@@ -87,7 +88,8 @@ public class FeedMutationService {
                 0,
             autor,
             post.getTags() == null ? List.of() : List.copyOf(post.getTags()),
-            post.getLocation());
+            post.getLocation(),
+            post.getImageUrl());
     }
 
     private Profiles resolveProfile(User user) {

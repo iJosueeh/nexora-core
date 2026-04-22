@@ -39,5 +39,8 @@ public class Profiles extends BaseEntity {
     @Column(name="followers_count")
     private int followersCount;
 
+    @Column(name="following_count")
+    private int followingCount;
+
 
 }
