@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.nexora.core.auth.dto.*;
+import com.nexora.core.graphql.dto.ProfileView;
+import com.nexora.core.graphql.dto.UpdateProfileInput;
 import com.nexora.core.user.entity.Roles;
 import com.nexora.core.user.entity.User;
 import com.nexora.core.user.enums.Role;
@@ -67,6 +69,8 @@ public class AuthService {
         if (request.getUsername() != null) profile.setUsername(request.getUsername());
         if (request.getFullName() != null) profile.setFullName(request.getFullName());
         if (request.getBio() != null) profile.setBio(request.getBio());
+        if (request.getAvatarUrl() != null) profile.setAvatarUrl(request.getAvatarUrl());
+        if (request.getBannerUrl() != null) profile.setBannerUrl(request.getBannerUrl());
 
         if (request.getCareer() != null && !request.getCareer().isBlank()) {
             Courses career = coursesRepository.findByNameIgnoreCase(request.getCareer().trim())
@@ -127,9 +131,70 @@ public class AuthService {
                 .avatarUrl(profile.getAvatarUrl())
                 .bannerUrl(profile.getBannerUrl())
                 .followersCount(profile.getFollowersCount())
+                .followingCount(profile.getFollowingCount())
                 .academicInterests(academicInterests)
                 .profileComplete(isProfileComplete(profile, interestsCount))
                 .build();
+    }
+
+    public ProfileView actualizarPerfil(String email, UpdateProfileInput input) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        Profiles profile = profilesRepository.findByUser_Id(user.getId());
+        if (profile == null) {
+            throw new RuntimeException("Profile not found");
+        }
+
+        if (input.username() != null) profile.setUsername(input.username());
+        if (input.fullName() != null) profile.setFullName(input.fullName());
+        if (input.bio() != null) profile.setBio(input.bio());
+        if (input.avatarUrl() != null) profile.setAvatarUrl(input.avatarUrl());
+        if (input.bannerUrl() != null) profile.setBannerUrl(input.bannerUrl());
+
+        if (input.career() != null && !input.career().isBlank()) {
+            Courses career = coursesRepository.findByNameIgnoreCase(input.career().trim())
+                    .orElseThrow(() -> new IllegalArgumentException("Career not found: " + input.career()));
+            profile.setCarrera(career);
+        }
+
+        if (input.academicInterests() != null) {
+            profilesInterestsRepository.deleteByProfile(profile);
+            for (String interestName : input.academicInterests()) {
+                AcademicInterests interest = academicInterestsRepository.findByName(interestName)
+                        .orElseGet(() -> {
+                            AcademicInterests newInterest = new AcademicInterests();
+                            newInterest.setName(interestName);
+                            return academicInterestsRepository.save(newInterest);
+                        });
+
+                ProfilesInterests relation = new ProfilesInterests();
+                relation.setProfile(profile);
+                relation.setInteres(interest);
+                profilesInterestsRepository.save(relation);
+            }
+        }
+
+        Profiles saved = profilesRepository.save(profile);
+        long interestsCount = profilesInterestsRepository.countByProfile(saved);
+        return buildProfileView(user, saved, interestsCount);
+    }
+
+    private ProfileView buildProfileView(User user, Profiles profile, long interestsCount) {
+        return new ProfileView(
+                user.getId(),
+                user.getEmail(),
+                profile.getUsername(),
+                profile.getFullName(),
+                profile.getBio(),
+                profile.getCarrera() != null ? profile.getCarrera().getName() : null,
+                profile.getAvatarUrl(),
+                profile.getBannerUrl(),
+                profile.getFollowersCount(),
+                profile.getFollowingCount(),
+                mapAcademicInterests(profile),
+                isProfileComplete(profile, interestsCount)
+        );
     }
 
     private AuthResponse buildSessionResponse(User user) {
@@ -151,6 +216,7 @@ public class AuthService {
             .avatarUrl(profile != null ? profile.getAvatarUrl() : null)
             .bannerUrl(profile != null ? profile.getBannerUrl() : null)
             .followersCount(profile != null ? profile.getFollowersCount() : 0)
+            .followingCount(profile != null ? profile.getFollowingCount() : 0)
             .academicInterests(academicInterests)
                 .profileComplete(isProfileComplete(profile, interestsCount))
                 .build();
@@ -208,6 +274,8 @@ public class AuthService {
         Profiles newProfile = new Profiles();
         newProfile.setUser(user);
         newProfile.setFollowersCount(0);
+        newProfile.setFollowingCount(0);
+        newProfile.setBannerUrl("");
         profilesRepository.save(newProfile);
     }
 

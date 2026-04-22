@@ -6,8 +6,11 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Controller;
 
+import com.nexora.core.auth.services.AuthService;
 import com.nexora.core.graphql.dto.CreatePublicationInput;
 import com.nexora.core.graphql.dto.FeedPostView;
+import com.nexora.core.graphql.dto.ProfileView;
+import com.nexora.core.graphql.dto.UpdateProfileInput;
 
 import lombok.RequiredArgsConstructor;
 
@@ -16,9 +19,16 @@ import lombok.RequiredArgsConstructor;
 public class NexoraMutationController {
 
     private final FeedMutationService feedMutationService;
+    private final AuthService authService;
 
     @MutationMapping
     public FeedPostView crearPublicacion(@AuthenticationPrincipal Jwt jwt, @Argument CreatePublicationInput input) {
         return feedMutationService.crearPublicacion(jwt, input);
+    }
+
+    @MutationMapping
+    public ProfileView actualizarPerfil(@AuthenticationPrincipal Jwt jwt, @Argument UpdateProfileInput input) {
+        String email = jwt.getClaimAsString("email");
+        return authService.actualizarPerfil(email, input);
     }
 }

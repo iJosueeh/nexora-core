@@ -25,6 +25,7 @@ public class AuthResponse {
     private String avatarUrl;
     private String bannerUrl;
     private Integer followersCount;
+    private Integer followingCount;
     private List<String> academicInterests;
     private Boolean profileComplete;
 }

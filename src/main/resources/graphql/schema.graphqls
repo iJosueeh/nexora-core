@@ -10,6 +10,32 @@ type Query {
 
 type Mutation {
   crearPublicacion(input: CreatePublicationInput!): FeedPost!
+  actualizarPerfil(input: UpdateProfileInput!): Profile!
+}
+
+input UpdateProfileInput {
+  username: String
+  fullName: String
+  bio: String
+  career: String
+  avatarUrl: String
+  bannerUrl: String
+  academicInterests: [String!]
+}
+
+type Profile {
+  id: ID!
+  email: String!
+  username: String
+  fullName: String
+  bio: String
+  career: String
+  avatarUrl: String
+  bannerUrl: String
+  followersCount: Int
+  followingCount: Int
+  academicInterests: [String!]
+  profileComplete: Boolean
 }
 
 input CreatePublicationInput {
@@ -17,6 +43,7 @@ input CreatePublicationInput {
   contenido: String!
   tags: [String!]
   location: String
+  imageUrl: String
 }
 
 type FeedPost {
@@ -29,6 +56,7 @@ type FeedPost {
   autor: FeedAuthor!
   tags: [String!]!
   location: String
+  imageUrl: String
 }
 
 type FeedAuthor {

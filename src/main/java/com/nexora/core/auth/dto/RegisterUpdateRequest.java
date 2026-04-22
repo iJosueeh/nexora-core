@@ -14,6 +14,9 @@ public class RegisterUpdateRequest {
     @Size(max = 255)
     private String bio;
 
+    private String avatarUrl;
+    private String bannerUrl;
+
     @Size(max = 120)
     private String career;
 

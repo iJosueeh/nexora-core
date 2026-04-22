@@ -47,6 +47,9 @@ public class Post extends AuditableBaseEntity {
     @Column(name = "location")
     private String location;
 
+    @Column(name = "image_url")
+    private String imageUrl;
+
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "post_tags", joinColumns = @JoinColumn(name = "post_id"))
     @Column(name = "tag", nullable = false)

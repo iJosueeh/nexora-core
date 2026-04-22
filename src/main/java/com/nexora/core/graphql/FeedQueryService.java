@@ -43,7 +43,8 @@ public class FeedQueryService {
                 u.id AS autor_id,
                 pf.username AS autor_username,
                 pf.full_name AS autor_full_name,
-                pf.avatar_url AS autor_avatar_url
+                pf.avatar_url AS autor_avatar_url,
+                p.image_url
             FROM posts p
             JOIN usuarios u ON u.id = p.autor_id
             LEFT JOIN perfiles pf ON pf.usuario_id = u.id
@@ -101,8 +102,9 @@ public class FeedQueryService {
                     createdAt,
                     rs.getInt("comments_count"),
                     autor,
-                    List.of(),
-                    rs.getString("location"));
+                    new ArrayList<String>(),
+                    rs.getString("location"),
+                    rs.getString("image_url"));
         });
 
         if (posts.isEmpty()) {
@@ -122,7 +124,8 @@ public class FeedQueryService {
                         post.commentsCount(),
                         post.autor(),
                         tagsByPost.getOrDefault(post.id(), extractHashtags(post.titulo(), post.contenido())),
-                        post.location()))
+                        post.location(),
+                        post.imageUrl()))
                 .toList();
     }
 
