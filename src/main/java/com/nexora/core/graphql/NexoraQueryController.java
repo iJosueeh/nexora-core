@@ -15,7 +15,7 @@ import lombok.RequiredArgsConstructor;
 
 @Controller
 @RequiredArgsConstructor
-public class NexoraQueryController {
+public class        NexoraQueryController {
 
     private static final int MAX_OFFSET = 10_000;
     private static final int MAX_TAG_LIMIT = 30;
