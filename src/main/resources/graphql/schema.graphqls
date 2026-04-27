@@ -6,11 +6,61 @@ type Query {
   publicacionesPorUsuario(username: String!, limit: Int = 20, offset: Int = 0): [FeedPost!]!
   comentariosPorPost(postId: ID!): [CommentThread!]!
   availableTags(search: String = "", limit: Int = 12): [TagSuggestion!]!
+  
+  # Nuevas Queries para Explorar y Eventos
+  researchPapers(limit: Int = 20, offset: Int = 0, faculty: String): [ResearchPaper!]!
+  researchBySlug(slug: String!): ResearchPaper
+  
+  universityEvents(limit: Int = 20, offset: Int = 0, category: String): [UniversityEvent!]!
+  eventBySlug(slug: String!): UniversityEvent
 }
 
 type Mutation {
   crearPublicacion(input: CreatePublicationInput!): FeedPost!
   actualizarPerfil(input: UpdateProfileInput!): Profile!
+  
+  # Nuevas Mutaciones
+  confirmRSVP(eventId: ID!): UniversityEvent!
+}
+
+# Tipos para Investigación
+type ResearchPaper {
+  id: ID!
+  slug: String!
+  title: String!
+  summary: String!
+  faculty: String!
+  views: Int!
+  author: FeedAuthor!
+  createdAt: DateTime!
+  pdfUrl: String
+}
+
+# Tipos para Eventos
+type UniversityEvent {
+  id: ID!
+  slug: String!
+  title: String!
+  description: String!
+  date: String!
+  location: String!
+  category: String!
+  attendeesCount: Int!
+  image: String
+  organizer: Organizer
+  communityLinks: CommunityLinks
+  isUserRegistered: Boolean # Para saber si el usuario actual ya confirmó
+}
+
+type Organizer {
+  name: String!
+  role: String!
+}
+
+type CommunityLinks {
+  whatsapp: String
+  telegram: String
+  discord: String
 }
 
 input UpdateProfileInput {
