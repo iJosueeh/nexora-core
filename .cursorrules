@@ -1,0 +1,12 @@
+# Nexora Core Back-End Standards
+
+Refer to the root GEMINI.md for full standards.
+
+Critical Back-End Rules:
+1. GraphQL first: Update schema.graphqls before Java code.
+2. Use Lombok (@Data, @Builder) to keep classes clean.
+3. Feature-based packaging (e.g., com.nexora.core.content).
+4. All entities must use UUID or Slugs for public identifiers.
+5. Strict nullability in GraphQL: use ! for mandatory fields.
+6. Handle N+1 problems in GraphQL resolvers proactively.
+7. Snake_case for database mapping.
