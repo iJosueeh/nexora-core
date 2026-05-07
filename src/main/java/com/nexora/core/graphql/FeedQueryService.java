@@ -30,7 +30,6 @@ public class FeedQueryService {
     private final SecurityService securityService;
     private static final List<String> TAG_COLUMN_CANDIDATES = List.of("tag", "tag_name", "tags", "name");
     
-    // Coalesce currentUserId to a nil UUID if null to avoid type issues in some JDBC drivers
     private static final String FEED_SELECT_BASE_SQL = """
             SELECT
                 p.id,
@@ -52,7 +51,7 @@ public class FeedQueryService {
                 EXISTS (
                     SELECT 1
                     FROM post_likes l
-                    WHERE l.post_id = p.id AND l.user_id = CAST(COALESCE(:currentUserId, '00000000-0000-0000-0000-000000000000') AS UUID)
+                    WHERE l.post_id = p.id AND l.user_id = :currentUserId
                 ) AS is_liked,
                 u.id AS autor_id,
                 pf.username AS autor_username,
@@ -141,22 +140,32 @@ public class FeedQueryService {
                                 post.location(), post.imageUrl()))
                         .toList();
             } catch (Exception e) {
-                System.err.println("[FeedQueryService] Error enriqueciendo tags: " + e.getMessage());
                 return posts;
             }
         } catch (Exception e) {
-            System.err.println("[FeedQueryService] ERROR CRÍTICO SQL: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("[FeedQueryService] ERROR SQL: " + e.getMessage());
             return new ArrayList<>();
         }
     }
 
     public List<CommentThreadView> obtenerHilosComentarios(UUID postId) {
-        String sql = "SELECT id, post_id, parent_id, autor_id, content AS contenido, created_at FROM comentarios WHERE post_id = :postId ORDER BY created_at ASC";
+        String sql = """
+                SELECT
+                    c.id,
+                    c.post_id,
+                    c.parent_id,
+                    c.autor_id,
+                    c.content AS contenido,
+                    c.created_at
+                FROM comentarios c
+                WHERE c.post_id = :postId
+                ORDER BY c.created_at ASC
+                """;
+
         MapSqlParameterSource params = new MapSqlParameterSource().addValue("postId", postId);
 
         try {
-            return jdbcTemplate.query(sql, params, (rs, rowNum) -> {
+            List<CommentThreadView> comentarios = jdbcTemplate.query(sql, params, (rs, rowNum) -> {
                 Timestamp rawCreatedAt = rs.getTimestamp("created_at");
                 return new CommentThreadView(
                         rs.getObject("id", UUID.class),
@@ -164,25 +173,69 @@ public class FeedQueryService {
                         rs.getObject("parent_id", UUID.class),
                         rs.getObject("autor_id", UUID.class),
                         rs.getString("contenido"),
-                        rawCreatedAt != null ? rawCreatedAt.toInstant().atOffset(ZoneOffset.UTC) : null);
+                        rawCreatedAt != null ? rawCreatedAt.toLocalDateTime().atOffset(ZoneOffset.UTC) : null);
             });
+
+            Map<UUID, CommentThreadView> porId = new HashMap<>();
+            for (CommentThreadView comentario : comentarios) {
+                porId.put(comentario.id(), comentario);
+            }
+
+            List<CommentThreadView> raices = new ArrayList<>();
+            for (CommentThreadView comentario : comentarios) {
+                UUID parentId = comentario.parentId();
+                if (parentId != null && porId.containsKey(parentId)) {
+                    porId.get(parentId).respuestas().add(comentario);
+                } else {
+                    raices.add(comentario);
+                }
+            }
+
+            return raices;
         } catch (Exception e) {
             return new ArrayList<>();
         }
     }
 
     public List<TagSuggestionView> obtenerTagsDisponibles(String search, int limit) {
-        String sql = "SELECT tag_name, usage_count FROM (SELECT LOWER(TRIM(tag)) AS tag_name, COUNT(*) as usage_count FROM post_tags GROUP BY tag_name) combined LIMIT :limit";
+        String sql = """
+                SELECT tag_name, usage_count 
+                FROM (
+                    SELECT LOWER(TRIM(tag)) AS tag_name, COUNT(*) as usage_count 
+                    FROM post_tags 
+                    GROUP BY tag_name
+                ) combined 
+                LIMIT :limit
+                """;
         MapSqlParameterSource params = new MapSqlParameterSource().addValue("limit", limit);
         try {
-            return jdbcTemplate.query(sql, params, (rs, rowNum) -> new TagSuggestionView(rs.getString("tag_name"), rs.getString("tag_name"), rs.getInt("usage_count")));
+            return jdbcTemplate.query(sql, params, (rs, rowNum) -> 
+                new TagSuggestionView(rs.getString("tag_name"), rs.getString("tag_name"), rs.getInt("usage_count")));
         } catch (Exception e) {
             return new ArrayList<>();
         }
     }
 
     private Map<UUID, List<String>> obtenerTagsPorPostIds(List<UUID> postIds) {
-        return new HashMap<>();
+        if (postIds == null || postIds.isEmpty()) return Map.of();
+        
+        try {
+            String sql = "SELECT post_id, LOWER(TRIM(tag)) AS tag FROM post_tags WHERE post_id IN (:postIds)";
+            MapSqlParameterSource params = new MapSqlParameterSource().addValue("postIds", postIds);
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, params);
+
+            Map<UUID, List<String>> result = new HashMap<>();
+            for (Map<String, Object> row : rows) {
+                UUID pId = (UUID) row.get("post_id");
+                String tag = (String) row.get("tag");
+                if (pId != null && tag != null) {
+                    result.computeIfAbsent(pId, k -> new ArrayList<>()).add(tag);
+                }
+            }
+            return result;
+        } catch (Exception e) {
+            return new HashMap<>();
+        }
     }
 
     private List<String> extractHashtags(String title, String content) {
