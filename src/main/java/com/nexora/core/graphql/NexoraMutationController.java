@@ -7,11 +7,13 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Controller;
 
 import com.nexora.core.auth.services.AuthService;
+import com.nexora.core.content.services.InteractionService;
 import com.nexora.core.graphql.dto.CreatePublicationInput;
 import com.nexora.core.graphql.dto.FeedPostView;
 import com.nexora.core.graphql.dto.ProfileView;
 import com.nexora.core.graphql.dto.UpdateProfileInput;
 
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 
 @Controller
@@ -20,6 +22,7 @@ public class NexoraMutationController {
 
     private final FeedMutationService feedMutationService;
     private final AuthService authService;
+    private final InteractionService interactionService;
 
     @MutationMapping
     public FeedPostView crearPublicacion(@AuthenticationPrincipal Jwt jwt, @Argument CreatePublicationInput input) {
@@ -30,5 +33,10 @@ public class NexoraMutationController {
     public ProfileView actualizarPerfil(@AuthenticationPrincipal Jwt jwt, @Argument UpdateProfileInput input) {
         String email = jwt.getClaimAsString("email");
         return authService.actualizarPerfil(email, input);
+    }
+
+    @MutationMapping
+    public boolean toggleLike(@Argument UUID postId) {
+        return interactionService.toggleLike(postId);
     }
 }

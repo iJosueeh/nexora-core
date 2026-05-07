@@ -13,14 +13,36 @@ type Query {
   
   universityEvents(limit: Int = 20, offset: Int = 0, category: String): [UniversityEvent!]!
   eventBySlug(slug: String!): UniversityEvent
+
+  # Notificaciones
+  notificationHistory(limit: Int = 20, offset: Int = 0): [Notification!]!
+  unreadNotificationsCount: Int!
 }
 
 type Mutation {
   crearPublicacion(input: CreatePublicationInput!): FeedPost!
   actualizarPerfil(input: UpdateProfileInput!): Profile!
   
+  # Interacciones
+  toggleLike(postId: ID!): Boolean!
+
   # Nuevas Mutaciones
   confirmRSVP(eventId: ID!): UniversityEvent!
+
+  # Notificaciones
+  markNotificationAsRead(notificationId: ID!): Boolean!
+  markAllNotificationsAsRead: Boolean!
+}
+
+type Notification {
+  id: ID!
+  type: String!
+  content: String
+  isRead: Boolean!
+  createdAt: DateTime!
+  sender: FeedAuthor!
+  post: FeedPost
+  event: UniversityEvent
 }
 
 # Tipos para Investigación
@@ -103,6 +125,8 @@ type FeedPost {
   isOfficial: Boolean!
   createdAt: DateTime
   commentsCount: Int!
+  likesCount: Int!
+  isLiked: Boolean!
   autor: FeedAuthor!
   tags: [String!]!
   location: String

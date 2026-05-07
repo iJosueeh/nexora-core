@@ -85,11 +85,13 @@ public class FeedMutationService {
                 post.getContent(),
                 Boolean.TRUE.equals(post.getIsOfficial()),
                 createdAt,
-                0,
-            autor,
-            post.getTags() == null ? List.of() : List.copyOf(post.getTags()),
-            post.getLocation(),
-            post.getImageUrl());
+                0, // commentsCount initial
+                0, // likesCount initial
+                false, // isLiked initial
+                autor,
+                post.getTags() == null ? List.of() : List.copyOf(post.getTags()),
+                post.getLocation(),
+                post.getImageUrl());
     }
 
     private Profiles resolveProfile(User user) {
