@@ -18,6 +18,7 @@ import com.nexora.core.graphql.dto.CommentThreadView;
 import com.nexora.core.graphql.dto.FeedAuthorView;
 import com.nexora.core.graphql.dto.FeedPostView;
 import com.nexora.core.graphql.dto.TagSuggestionView;
+import com.nexora.core.graphql.dto.TrendingTopicView;
 import com.nexora.core.security.service.SecurityService;
 
 import lombok.RequiredArgsConstructor;
@@ -247,6 +248,102 @@ public class FeedQueryService {
             if (!tag.isBlank()) unique.put(tag, Boolean.TRUE);
         }
         return new ArrayList<>(unique.keySet());
+    }
+
+    public List<TrendingTopicView> obtenerTrendingTopics(int limit) {
+        // SQL compatible con tanto PostgreSQL como H2
+        String sql = """
+                SELECT
+                    p.id,
+                    p.titulo,
+                    p.content AS contenido,
+                    p.location,
+                    COALESCE(p.is_official, FALSE) AS is_official,
+                    p.created_at,
+                    (
+                        SELECT COUNT(*)
+                        FROM comentarios c
+                        WHERE c.post_id = p.id 
+                        AND c.created_at >= CURRENT_TIMESTAMP - INTERVAL '1' DAY
+                    ) AS comments_count_24h,
+                    (
+                        SELECT COUNT(*)
+                        FROM post_likes l
+                        WHERE l.post_id = p.id 
+                        AND l.created_at >= CURRENT_TIMESTAMP - INTERVAL '1' DAY
+                    ) AS likes_count_24h,
+                    u.id AS autor_id,
+                    pf.username AS autor_username,
+                    pf.full_name AS autor_full_name,
+                    pf.avatar_url AS autor_avatar_url,
+                    p.image_url
+                FROM posts p
+                JOIN usuarios u ON u.id = p.autor_id
+                LEFT JOIN perfiles pf ON pf.usuario_id = u.id
+                WHERE p.created_at >= CURRENT_TIMESTAMP - INTERVAL '1' DAY
+                ORDER BY (
+                    (SELECT COUNT(*) FROM comentarios c WHERE c.post_id = p.id AND c.created_at >= CURRENT_TIMESTAMP - INTERVAL '1' DAY) +
+                    (SELECT COUNT(*) FROM post_likes l WHERE l.post_id = p.id AND l.created_at >= CURRENT_TIMESTAMP - INTERVAL '1' DAY)
+                ) DESC
+                LIMIT :limit
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("limit", limit);
+
+        try {
+            List<TrendingTopicView> topics = jdbcTemplate.query(sql, params, (rs, rowNum) -> {
+                Timestamp rawCreatedAt = rs.getTimestamp("created_at");
+                OffsetDateTime createdAt = rawCreatedAt != null ? 
+                    rawCreatedAt.toLocalDateTime().atOffset(ZoneOffset.UTC) : null;
+
+                int commentsCount = rs.getInt("comments_count_24h");
+                int likesCount = rs.getInt("likes_count_24h");
+                int interactionScore = commentsCount + likesCount;
+
+                FeedAuthorView autor = new FeedAuthorView(
+                        rs.getObject("autor_id", UUID.class),
+                        rs.getString("autor_username"),
+                        rs.getString("autor_full_name"),
+                        rs.getString("autor_avatar_url"));
+
+                return new TrendingTopicView(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("titulo"),
+                        rs.getString("contenido"),
+                        rs.getBoolean("is_official"),
+                        createdAt,
+                        commentsCount,
+                        likesCount,
+                        interactionScore,
+                        autor,
+                        new ArrayList<>(),
+                        rs.getString("location"),
+                        rs.getString("image_url"));
+            });
+
+            if (topics.isEmpty()) {
+                return topics;
+            }
+
+            try {
+                List<UUID> postIds = topics.stream().map(TrendingTopicView::id).toList();
+                Map<UUID, List<String>> tagsByPost = obtenerTagsPorPostIds(postIds);
+
+                return topics.stream()
+                        .map(topic -> new TrendingTopicView(
+                                topic.id(), topic.titulo(), topic.contenido(), topic.isOfficial(),
+                                topic.createdAt(), topic.commentsCount(), topic.likesCount(), topic.interactionScore(),
+                                topic.autor(), 
+                                tagsByPost.getOrDefault(topic.id(), extractHashtags(topic.titulo(), topic.contenido())),
+                                topic.location(), topic.imageUrl()))
+                        .toList();
+            } catch (Exception e) {
+                return topics;
+            }
+        } catch (Exception e) {
+            System.err.println("[FeedQueryService] ERROR obtaining trending topics: " + e.getMessage());
+            return new ArrayList<>();
+        }
     }
 
     private UUID getCurrentUserIdSafe() {

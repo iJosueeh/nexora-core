@@ -188,6 +188,123 @@ class GraphQlQueriesIntegrationTest {
                 .andExpect(jsonPath("$.data.comentariosPorPost[0].respuestas[0].contenido").value("Respuesta hija"));
     }
 
+    @Test
+    void trendingTopicsShouldReturnPostsSortedByInteractionScoreIn24h() throws Exception {
+        User author = buildUser("trending-" + UUID.randomUUID() + "@utp.edu.pe");
+        Profiles profile = new Profiles();
+        profile.setUser(author);
+        profile.setUsername("trendinguser_" + UUID.randomUUID().toString().substring(0, 8));
+        profile.setFullName("Trending User");
+        profile.setBio("bio");
+        profile.setFollowersCount(0);
+        profilesRepository.save(profile);
+
+        // Post 1: 5 interacciones (3 likes + 2 comentarios) en últimas 24h
+        Post post1 = new Post();
+        post1.setAutor(author);
+        post1.setTitulo("Post Trending 1");
+        post1.setContent("Contenido con trending");
+        post1.setIsOfficial(false);
+        post1.setStatus("PUBLISHED");
+        post1 = postRepository.save(post1);
+
+        // Post 2: 2 interacciones (2 likes) en últimas 24h
+        Post post2 = new Post();
+        post2.setAutor(author);
+        post2.setTitulo("Post Trending 2");
+        post2.setContent("Contenido con menos trending");
+        post2.setIsOfficial(false);
+        post2.setStatus("PUBLISHED");
+        post2 = postRepository.save(post2);
+
+        // Post 3: 1 interacción pero fuera de 24h
+        Post post3 = new Post();
+        post3.setAutor(author);
+        post3.setTitulo("Post Viejo");
+        post3.setContent("Viejo post");
+        post3.setIsOfficial(false);
+        post3.setStatus("PUBLISHED");
+        post3 = postRepository.save(post3);
+
+        // Agregar comentarios para post1 en últimas 24h
+        Comment comment1 = new Comment();
+        comment1.setPost(post1);
+        comment1.setAutor(author);
+        comment1.setContent("Comentario 1");
+        commentRepository.save(comment1);
+
+        Comment comment2 = new Comment();
+        comment2.setPost(post1);
+        comment2.setAutor(author);
+        comment2.setContent("Comentario 2");
+        commentRepository.save(comment2);
+
+        // Crear usuarios diferentes para los likes
+        User liker1 = buildUser("liker1-" + UUID.randomUUID() + "@utp.edu.pe");
+        User liker2 = buildUser("liker2-" + UUID.randomUUID() + "@utp.edu.pe");
+        User liker3 = buildUser("liker3-" + UUID.randomUUID() + "@utp.edu.pe");
+        User liker4 = buildUser("liker4-" + UUID.randomUUID() + "@utp.edu.pe");
+        User liker5 = buildUser("liker5-" + UUID.randomUUID() + "@utp.edu.pe");
+        User likerOld = buildUser("liker-old-" + UUID.randomUUID() + "@utp.edu.pe");
+
+        // Agregar likes para post1 (3 likes en últimas 24h)
+        jdbcTemplate.update("INSERT INTO post_likes (post_id, user_id, created_at) VALUES (?, ?, ?)",
+                post1.getId(), liker1.getId(), Timestamp.valueOf(LocalDateTime.now()));
+        jdbcTemplate.update("INSERT INTO post_likes (post_id, user_id, created_at) VALUES (?, ?, ?)",
+                post1.getId(), liker2.getId(), Timestamp.valueOf(LocalDateTime.now()));
+        jdbcTemplate.update("INSERT INTO post_likes (post_id, user_id, created_at) VALUES (?, ?, ?)",
+                post1.getId(), liker3.getId(), Timestamp.valueOf(LocalDateTime.now()));
+
+        // Agregar likes para post2 (2 likes en últimas 24h)
+        jdbcTemplate.update("INSERT INTO post_likes (post_id, user_id, created_at) VALUES (?, ?, ?)",
+                post2.getId(), liker4.getId(), Timestamp.valueOf(LocalDateTime.now()));
+        jdbcTemplate.update("INSERT INTO post_likes (post_id, user_id, created_at) VALUES (?, ?, ?)",
+                post2.getId(), liker5.getId(), Timestamp.valueOf(LocalDateTime.now()));
+
+        // Agregar like para post3 pero 25 horas atrás (fuera de 24h)
+        jdbcTemplate.update("INSERT INTO post_likes (post_id, user_id, created_at) VALUES (?, ?, ?)",
+                post3.getId(), likerOld.getId(), 
+                Timestamp.valueOf(LocalDateTime.now().minusHours(25)));
+
+        // Ajustar created_at para que post1 sea más reciente
+        jdbcTemplate.update("UPDATE posts SET created_at = ? WHERE id = ?",
+                Timestamp.valueOf(LocalDateTime.now().minusHours(2)), post1.getId());
+        jdbcTemplate.update("UPDATE posts SET created_at = ? WHERE id = ?",
+                Timestamp.valueOf(LocalDateTime.now().minusHours(1)), post2.getId());
+        jdbcTemplate.update("UPDATE posts SET created_at = ? WHERE id = ?",
+                Timestamp.valueOf(LocalDateTime.now().minusHours(30)), post3.getId());
+
+        String query = """
+                query {
+                  trendingTopics(limit: 10) {
+                    titulo
+                    contenido
+                    interactionScore
+                    commentsCount
+                    likesCount
+                    autor {
+                      username
+                    }
+                  }
+                }
+                """;
+
+        String body = graphQlBody(query);
+
+        mockMvc.perform(post("/graphql")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.errors").doesNotExist())
+                .andExpect(jsonPath("$.data.trendingTopics[0].titulo").value("Post Trending 1"))
+                .andExpect(jsonPath("$.data.trendingTopics[0].interactionScore").value(5))
+                .andExpect(jsonPath("$.data.trendingTopics[0].commentsCount").value(2))
+                .andExpect(jsonPath("$.data.trendingTopics[0].likesCount").value(3))
+                .andExpect(jsonPath("$.data.trendingTopics[1].titulo").value("Post Trending 2"))
+                .andExpect(jsonPath("$.data.trendingTopics[1].interactionScore").value(2))
+                .andExpect(jsonPath("$.data.trendingTopics.length()").value(2));
+    }
+
     private User buildUser(String email) {
         User user = new User();
         user.setEmail(email);

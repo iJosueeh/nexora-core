@@ -6,6 +6,7 @@ type Query {
   publicacionesPorUsuario(username: String!, limit: Int = 20, offset: Int = 0): [FeedPost!]!
   comentariosPorPost(postId: ID!): [CommentThread!]!
   availableTags(search: String = "", limit: Int = 12): [TagSuggestion!]!
+  trendingTopics(limit: Int = 10): [TrendingTopic!]!
   
   # Nuevas Queries para Explorar y Eventos
   researchPapers(limit: Int = 20, offset: Int = 0, faculty: String): [ResearchPaper!]!
@@ -154,4 +155,19 @@ type TagSuggestion {
   id: ID!
   name: String!
   usageCount: Int!
+}
+
+type TrendingTopic {
+  id: ID!
+  titulo: String
+  contenido: String!
+  isOfficial: Boolean!
+  createdAt: DateTime
+  commentsCount: Int!
+  likesCount: Int!
+  interactionScore: Int!
+  autor: FeedAuthor!
+  tags: [String!]!
+  location: String
+  imageUrl: String
 }
