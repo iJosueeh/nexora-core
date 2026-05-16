@@ -117,6 +117,10 @@ public class AuthService {
                 .orElseThrow(() -> new UsernameNotFoundException("Profile not found"));
 
         User user = profile.getUser();
+        
+        // Sincronizar contadores antes de responder
+        syncSocialCounters(user, profile);
+
         long interestsCount = profilesInterestsRepository.countByProfile(profile);
         List<String> academicInterests = mapAcademicInterests(profile);
 
@@ -192,11 +196,33 @@ public class AuthService {
         return buildProfileView(user, saved, interestsCount);
     }
 
+    private void syncSocialCounters(User user, Profiles profile) {
+        long actualFollowers = followRepository.countByFollowing(user);
+        long actualFollowing = followRepository.countByFollower(user);
+
+        boolean needsUpdate = false;
+        if (profile.getFollowersCount() != (int) actualFollowers) {
+            profile.setFollowersCount((int) actualFollowers);
+            needsUpdate = true;
+        }
+        if (profile.getFollowingCount() != (int) actualFollowing) {
+            profile.setFollowingCount((int) actualFollowing);
+            needsUpdate = true;
+        }
+
+        if (needsUpdate) {
+            profilesRepository.save(profile);
+        }
+    }
+
     private ProfileView buildProfileView(User user, Profiles profile, long interestsCount) {
         UUID currentUserId = null;
         try {
             currentUserId = securityService.getCurrentUserId();
         } catch (Exception ignored) {}
+
+        // Sincronizar contadores antes de construir la vista
+        syncSocialCounters(user, profile);
 
         boolean isFollowing = false;
         if (currentUserId != null && !currentUserId.equals(user.getId())) {
@@ -225,6 +251,9 @@ public class AuthService {
 
     private AuthResponse buildSessionResponse(User user) {
         Profiles profile = profilesRepository.findByUser_Id(user.getId());
+        if (profile != null) {
+            syncSocialCounters(user, profile);
+        }
         long interestsCount = profile == null ? 0 : profilesInterestsRepository.countByProfile(profile);
         List<String> academicInterests = mapAcademicInterests(profile);
 
