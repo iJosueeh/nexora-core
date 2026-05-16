@@ -8,6 +8,8 @@ import com.nexora.core.profile.repository.AcademicInterestsRepository;
 import com.nexora.core.profile.repository.CoursesRepository;
 import com.nexora.core.profile.repository.ProfilesInterestsRepository;
 import com.nexora.core.profile.repository.ProfilesRepository;
+import com.nexora.core.content.repository.FollowRepository;
+import com.nexora.core.security.service.SecurityService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,7 +39,8 @@ public class AuthService {
     private final AcademicInterestsRepository academicInterestsRepository;
     private final CoursesRepository coursesRepository;
     private final ProfilesInterestsRepository profilesInterestsRepository;
- 
+    private final FollowRepository followRepository;
+    private final SecurityService securityService;
 
     public RegistrationCatalogsResponse getRegistrationCatalogs() {
         List<String> careers = coursesRepository.findAllByOrderByNameAsc()
@@ -109,13 +112,21 @@ public class AuthService {
         return buildSessionResponse(user);
     }
 
-    public AuthResponse resolvePublicProfile(String username) {
+    public AuthResponse resolvePublicProfile(String username, String viewerEmail) {
         Profiles profile = profilesRepository.findByUsernameIgnoreCase(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Profile not found"));
 
         User user = profile.getUser();
         long interestsCount = profilesInterestsRepository.countByProfile(profile);
         List<String> academicInterests = mapAcademicInterests(profile);
+
+        boolean isFollowing = false;
+        if (viewerEmail != null) {
+            User viewer = userRepository.findByEmail(viewerEmail).orElse(null);
+            if (viewer != null) {
+                isFollowing = followRepository.existsByFollowerAndFollowing(viewer, user);
+            }
+        }
 
         return AuthResponse.builder()
                 .accessToken(null)
@@ -134,6 +145,7 @@ public class AuthService {
                 .followingCount(profile.getFollowingCount())
                 .academicInterests(academicInterests)
                 .profileComplete(isProfileComplete(profile, interestsCount))
+                .isFollowing(isFollowing)
                 .build();
     }
 
@@ -181,6 +193,19 @@ public class AuthService {
     }
 
     private ProfileView buildProfileView(User user, Profiles profile, long interestsCount) {
+        UUID currentUserId = null;
+        try {
+            currentUserId = securityService.getCurrentUserId();
+        } catch (Exception ignored) {}
+
+        boolean isFollowing = false;
+        if (currentUserId != null && !currentUserId.equals(user.getId())) {
+            User viewer = userRepository.findById(currentUserId).orElse(null);
+            if (viewer != null) {
+                isFollowing = followRepository.existsByFollowerAndFollowing(viewer, user);
+            }
+        }
+
         return new ProfileView(
                 user.getId(),
                 user.getEmail(),
@@ -193,7 +218,8 @@ public class AuthService {
                 profile.getFollowersCount(),
                 profile.getFollowingCount(),
                 mapAcademicInterests(profile),
-                isProfileComplete(profile, interestsCount)
+                isProfileComplete(profile, interestsCount),
+                isFollowing
         );
     }
 
@@ -219,6 +245,7 @@ public class AuthService {
             .followingCount(profile != null ? profile.getFollowingCount() : 0)
             .academicInterests(academicInterests)
                 .profileComplete(isProfileComplete(profile, interestsCount))
+                .isFollowing(false)
                 .build();
     }
 

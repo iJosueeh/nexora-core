@@ -28,4 +28,5 @@ public class AuthResponse {
     private Integer followingCount;
     private List<String> academicInterests;
     private Boolean profileComplete;
+    private Boolean isFollowing;
 }
