@@ -266,11 +266,11 @@ class GraphQlQueriesIntegrationTest {
                 post3.getId(), likerOld.getId(), 
                 Timestamp.valueOf(LocalDateTime.now().minusHours(25)));
 
-        // Ajustar created_at para que post1 sea más reciente
+        // Ajustar created_at: hacer post1 más reciente (now-1h) y post2 menos reciente (now-2h)
         jdbcTemplate.update("UPDATE posts SET created_at = ? WHERE id = ?",
-                Timestamp.valueOf(LocalDateTime.now().minusHours(2)), post1.getId());
+                Timestamp.valueOf(LocalDateTime.now().minusHours(1)), post1.getId());
         jdbcTemplate.update("UPDATE posts SET created_at = ? WHERE id = ?",
-                Timestamp.valueOf(LocalDateTime.now().minusHours(1)), post2.getId());
+                Timestamp.valueOf(LocalDateTime.now().minusHours(2)), post2.getId());
         jdbcTemplate.update("UPDATE posts SET created_at = ? WHERE id = ?",
                 Timestamp.valueOf(LocalDateTime.now().minusHours(30)), post3.getId());
 

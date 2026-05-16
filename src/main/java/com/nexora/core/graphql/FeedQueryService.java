@@ -2,6 +2,7 @@ package com.nexora.core.graphql;
 
 import java.sql.Timestamp;
 import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -9,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.LinkedHashMap;
+import java.util.Objects;
 
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -22,14 +24,15 @@ import com.nexora.core.graphql.dto.TrendingTopicView;
 import com.nexora.core.security.service.SecurityService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class FeedQueryService {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final SecurityService securityService;
-    private static final List<String> TAG_COLUMN_CANDIDATES = List.of("tag", "tag_name", "tags", "name");
     
     private static final String FEED_SELECT_BASE_SQL = """
             SELECT
@@ -103,25 +106,34 @@ public class FeedQueryService {
                 OffsetDateTime createdAt = rawCreatedAt != null ? 
                     rawCreatedAt.toLocalDateTime().atOffset(ZoneOffset.UTC) : null;
 
+                String autorUsername = Objects.requireNonNullElse(rs.getString("autor_username"), "");
+                String autorFullName = Objects.requireNonNullElse(rs.getString("autor_full_name"), "");
+                String autorAvatarUrl = Objects.requireNonNullElse(rs.getString("autor_avatar_url"), "");
+
                 FeedAuthorView autor = new FeedAuthorView(
-                        rs.getObject("autor_id", UUID.class),
-                        rs.getString("autor_username"),
-                        rs.getString("autor_full_name"),
-                        rs.getString("autor_avatar_url"));
+                    rs.getObject("autor_id", UUID.class),
+                    autorUsername,
+                    autorFullName,
+                    autorAvatarUrl);
+
+                String titulo = Objects.requireNonNullElse(rs.getString("titulo"), "");
+                String contenido = Objects.requireNonNullElse(rs.getString("contenido"), "");
+                String location = Objects.requireNonNullElse(rs.getString("location"), "");
+                String imageUrl = Objects.requireNonNullElse(rs.getString("image_url"), "");
 
                 return new FeedPostView(
-                        rs.getObject("id", UUID.class),
-                        rs.getString("titulo"),
-                        rs.getString("contenido"),
-                        rs.getBoolean("is_official"),
-                        createdAt,
-                        rs.getInt("comments_count"),
-                        rs.getInt("likes_count"),
-                        rs.getBoolean("is_liked"),
-                        autor,
-                        new ArrayList<>(),
-                        rs.getString("location"),
-                        rs.getString("image_url"));
+                    rs.getObject("id", UUID.class),
+                    titulo,
+                    contenido,
+                    rs.getBoolean("is_official"),
+                    createdAt,
+                    rs.getInt("comments_count"),
+                    rs.getInt("likes_count"),
+                    rs.getBoolean("is_liked"),
+                    autor,
+                    new ArrayList<>(),
+                    location,
+                    imageUrl);
             });
 
             if (posts.isEmpty()) {
@@ -141,10 +153,11 @@ public class FeedQueryService {
                                 post.location(), post.imageUrl()))
                         .toList();
             } catch (Exception e) {
+                log.warn("[FeedQueryService] Could not enrich posts with tags; returning posts without tags: {}", e.getMessage(), e);
                 return posts;
             }
         } catch (Exception e) {
-            System.err.println("[FeedQueryService] ERROR SQL: " + e.getMessage());
+            log.error("[FeedQueryService] ERROR SQL: {}", e.getMessage(), e);
             return new ArrayList<>();
         }
     }
@@ -208,10 +221,16 @@ public class FeedQueryService {
                 ) combined 
                 LIMIT :limit
                 """;
-        MapSqlParameterSource params = new MapSqlParameterSource().addValue("limit", limit);
+        // Calcular timestamp de corte (últimas 24 horas) y pasarlo como parámetro
+        LocalDateTime since = LocalDateTime.now().minusHours(24);
+        MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("limit", limit)
+            .addValue("since", Timestamp.valueOf(since));
         try {
-            return jdbcTemplate.query(sql, params, (rs, rowNum) -> 
-                new TagSuggestionView(rs.getString("tag_name"), rs.getString("tag_name"), rs.getInt("usage_count")));
+            return jdbcTemplate.query(sql, params, (rs, rowNum) -> {
+                String tagName = Objects.requireNonNullElse(rs.getString("tag_name"), "");
+                return new TagSuggestionView(tagName, tagName, rs.getInt("usage_count"));
+            });
         } catch (Exception e) {
             return new ArrayList<>();
         }
@@ -251,7 +270,7 @@ public class FeedQueryService {
     }
 
     public List<TrendingTopicView> obtenerTrendingTopics(int limit) {
-        // SQL compatible con tanto PostgreSQL como H2
+        // SQL usando agregados por post (LEFT JOIN a subselects) y parámetros nombrados
         String sql = """
                 SELECT
                     p.id,
@@ -260,35 +279,37 @@ public class FeedQueryService {
                     p.location,
                     COALESCE(p.is_official, FALSE) AS is_official,
                     p.created_at,
-                    (
-                        SELECT COUNT(*)
-                        FROM comentarios c
-                        WHERE c.post_id = p.id 
-                        AND c.created_at >= CURRENT_TIMESTAMP - INTERVAL '1' DAY
-                    ) AS comments_count_24h,
-                    (
-                        SELECT COUNT(*)
-                        FROM post_likes l
-                        WHERE l.post_id = p.id 
-                        AND l.created_at >= CURRENT_TIMESTAMP - INTERVAL '1' DAY
-                    ) AS likes_count_24h,
+                    COALESCE(c.comments_count_24h, 0) AS comments_count_24h,
+                    COALESCE(l.likes_count_24h, 0) AS likes_count_24h,
                     u.id AS autor_id,
                     pf.username AS autor_username,
                     pf.full_name AS autor_full_name,
                     pf.avatar_url AS autor_avatar_url,
                     p.image_url
                 FROM posts p
+                LEFT JOIN (
+                    SELECT post_id, COUNT(*) AS comments_count_24h
+                    FROM comentarios
+                    WHERE created_at >= :since
+                    GROUP BY post_id
+                ) c ON c.post_id = p.id
+                LEFT JOIN (
+                    SELECT post_id, COUNT(*) AS likes_count_24h
+                    FROM post_likes
+                    WHERE created_at >= :since
+                    GROUP BY post_id
+                ) l ON l.post_id = p.id
                 JOIN usuarios u ON u.id = p.autor_id
                 LEFT JOIN perfiles pf ON pf.usuario_id = u.id
-                WHERE p.created_at >= CURRENT_TIMESTAMP - INTERVAL '1' DAY
-                ORDER BY (
-                    (SELECT COUNT(*) FROM comentarios c WHERE c.post_id = p.id AND c.created_at >= CURRENT_TIMESTAMP - INTERVAL '1' DAY) +
-                    (SELECT COUNT(*) FROM post_likes l WHERE l.post_id = p.id AND l.created_at >= CURRENT_TIMESTAMP - INTERVAL '1' DAY)
-                ) DESC
+                WHERE p.created_at >= :since
+                ORDER BY (COALESCE(c.comments_count_24h,0) + COALESCE(l.likes_count_24h,0)) DESC, p.created_at DESC
                 LIMIT :limit
                 """;
 
-        MapSqlParameterSource params = new MapSqlParameterSource().addValue("limit", limit);
+        LocalDateTime since = LocalDateTime.now().minusHours(24);
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("limit", limit)
+                .addValue("since", Timestamp.valueOf(since));
 
         try {
             List<TrendingTopicView> topics = jdbcTemplate.query(sql, params, (rs, rowNum) -> {
@@ -300,25 +321,34 @@ public class FeedQueryService {
                 int likesCount = rs.getInt("likes_count_24h");
                 int interactionScore = commentsCount + likesCount;
 
+                String autorUsername = Objects.requireNonNullElse(rs.getString("autor_username"), "");
+                String autorFullName = Objects.requireNonNullElse(rs.getString("autor_full_name"), "");
+                String autorAvatarUrl = Objects.requireNonNullElse(rs.getString("autor_avatar_url"), "");
+
                 FeedAuthorView autor = new FeedAuthorView(
-                        rs.getObject("autor_id", UUID.class),
-                        rs.getString("autor_username"),
-                        rs.getString("autor_full_name"),
-                        rs.getString("autor_avatar_url"));
+                    rs.getObject("autor_id", UUID.class),
+                    autorUsername,
+                    autorFullName,
+                    autorAvatarUrl);
+
+                String titulo = Objects.requireNonNullElse(rs.getString("titulo"), "");
+                String contenido = Objects.requireNonNullElse(rs.getString("contenido"), "");
+                String location = Objects.requireNonNullElse(rs.getString("location"), "");
+                String imageUrl = Objects.requireNonNullElse(rs.getString("image_url"), "");
 
                 return new TrendingTopicView(
-                        rs.getObject("id", UUID.class),
-                        rs.getString("titulo"),
-                        rs.getString("contenido"),
-                        rs.getBoolean("is_official"),
-                        createdAt,
-                        commentsCount,
-                        likesCount,
-                        interactionScore,
-                        autor,
-                        new ArrayList<>(),
-                        rs.getString("location"),
-                        rs.getString("image_url"));
+                    rs.getObject("id", UUID.class),
+                    titulo,
+                    contenido,
+                    rs.getBoolean("is_official"),
+                    createdAt,
+                    commentsCount,
+                    likesCount,
+                    interactionScore,
+                    autor,
+                    new ArrayList<>(),
+                    location,
+                    imageUrl);
             });
 
             if (topics.isEmpty()) {
@@ -338,10 +368,11 @@ public class FeedQueryService {
                                 topic.location(), topic.imageUrl()))
                         .toList();
             } catch (Exception e) {
+                log.warn("[FeedQueryService] Could not enrich topics with tags; returning topics without tags: {}", e.getMessage(), e);
                 return topics;
             }
         } catch (Exception e) {
-            System.err.println("[FeedQueryService] ERROR obtaining trending topics: " + e.getMessage());
+            log.error("[FeedQueryService] ERROR obtaining trending topics: {}", e.getMessage(), e);
             return new ArrayList<>();
         }
     }
