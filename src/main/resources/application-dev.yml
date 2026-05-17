@@ -4,6 +4,10 @@ spring:
     hibernate:
       ddl-auto: none
 
+app:
+  docs:
+    public-enabled: true
+
 logging:
   level:
     root: info

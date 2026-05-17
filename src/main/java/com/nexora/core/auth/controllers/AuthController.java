@@ -1,5 +1,7 @@
 package com.nexora.core.auth.controllers;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,10 +22,12 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Tag(name = "Autenticación", description = "Endpoints para la autenticación de usuarios y gestión de sesiones")
 public class AuthController {
 
     private final AuthService authService;
 
+    @Operation(summary = "Completar registro de usuario", description = "Actualiza la información del perfil e intereses de un nuevo usuario.")
     @PutMapping("/register")
     public ResponseEntity<ApiResponse<AuthResponse>> completeRegistration(
             @AuthenticationPrincipal Jwt jwt,
@@ -39,6 +43,7 @@ public class AuthController {
                 .build());
     }
 
+    @Operation(summary = "Obtener catálogos de registro", description = "Recupera las carreras e intereses académicos necesarios para el registro.")
     @GetMapping("/catalogs")
     public ResponseEntity<ApiResponse<RegistrationCatalogsResponse>> registrationCatalogs() {
         RegistrationCatalogsResponse catalogs = authService.getRegistrationCatalogs();
@@ -50,6 +55,7 @@ public class AuthController {
                 .build());
     }
 
+    @Operation(summary = "Obtener sesión actual", description = "Resuelve la información de la sesión para el usuario autenticado actualmente.")
     @GetMapping("/session")
     public ResponseEntity<ApiResponse<AuthResponse>> session(@AuthenticationPrincipal Jwt jwt) {
         String email = jwt.getClaimAsString("email");
@@ -63,6 +69,7 @@ public class AuthController {
                 .build());
     }
 
+    @Operation(summary = "Obtener perfil público", description = "Recupera la información del perfil público para un nombre de usuario dado.")
     @GetMapping("/public-profile/{username}")
     public ResponseEntity<ApiResponse<AuthResponse>> publicProfile(
             @PathVariable String username,
@@ -78,3 +85,4 @@ public class AuthController {
                 .build());
     }
 }
+

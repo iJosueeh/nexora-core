@@ -53,18 +53,29 @@ public class SecurityConfig {
         return http
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
+                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin())) // Permitir frames para consolas H2 o similares
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
                     auth.requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll();
                     auth.requestMatchers(HttpMethod.GET, "/api/auth/catalogs").permitAll();
                     auth.requestMatchers(HttpMethod.GET, "/api/auth/public-profile/**").permitAll();
-                    if (publicDocsEnabled) {
-                        auth.requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll();
-                    }
-                    if (publicGraphqlEnabled) {
-                        auth.requestMatchers("/graphql", "/graphiql", "/graphiql/**").permitAll();
-                    }
+                    auth.requestMatchers("/favicon.ico", "/error", "/webjars/**").permitAll();
+                    
+                    auth.requestMatchers(
+                            "/swagger-ui/**", 
+                            "/swagger-ui.html", 
+                            "/v3/api-docs/**", 
+                            "/v3/api-docs"
+                    ).permitAll();
+                    
+                    auth.requestMatchers(
+                            "/graphql", 
+                            "/graphiql", 
+                            "/graphiql/**", 
+                            "/graphql/**"
+                    ).permitAll();
+                    
                     auth.anyRequest().authenticated();
                 })
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))

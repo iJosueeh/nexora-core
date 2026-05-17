@@ -67,7 +67,7 @@ logging:
 
 app:
   docs:
-    public-enabled: ${APP_DOCS_PUBLIC_ENABLED:false}
+    public-enabled: ${APP_DOCS_PUBLIC_ENABLED:true}
   graphql:
     public-enabled: ${APP_GRAPHQL_PUBLIC_ENABLED:true}
   cors:
