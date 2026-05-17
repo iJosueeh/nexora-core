@@ -17,6 +17,26 @@ type Query {
   # Notificaciones
   notificationHistory(limit: Int = 20, offset: Int = 0): [Notification!]!
   unreadNotificationsCount: Int!
+
+  # Estadísticas para Administración
+  adminStats: AdminStats!
+
+  # Gestión de Usuarios
+  allUsers(limit: Int = 20, offset: Int = 0, search: String = ""): [Profile!]!
+}
+
+type AdminStats {
+  totalUsers: Int!
+  totalPosts: Int!
+  activeEvents: Int!
+  recentActivity: [RecentActivity!]!
+}
+
+type RecentActivity {
+  id: ID!
+  type: String! # USER_REGISTERED, POST_CREATED, EVENT_CREATED
+  description: String!
+  createdAt: DateTime!
 }
 
 type Mutation {
@@ -33,6 +53,11 @@ type Mutation {
   # Notificaciones
   markNotificationAsRead(notificationId: ID!): Boolean!
   markAllNotificationsAsRead: Boolean!
+
+  # Gestión Administrativa
+  updateUserStatus(userId: ID!, isActive: Boolean!): Profile!
+  markPostAsOfficial(postId: ID!, isOfficial: Boolean!): FeedPost!
+  deletePost(postId: ID!): Boolean!
 }
 
 type Notification {
