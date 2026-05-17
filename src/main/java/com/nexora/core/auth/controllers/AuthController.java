@@ -64,8 +64,12 @@ public class AuthController {
     }
 
     @GetMapping("/public-profile/{username}")
-    public ResponseEntity<ApiResponse<AuthResponse>> publicProfile(@PathVariable String username) {
-        AuthResponse authResponse = authService.resolvePublicProfile(username);
+    public ResponseEntity<ApiResponse<AuthResponse>> publicProfile(
+            @PathVariable String username,
+            @AuthenticationPrincipal Jwt jwt) {
+        
+        String viewerEmail = jwt != null ? jwt.getClaimAsString("email") : null;
+        AuthResponse authResponse = authService.resolvePublicProfile(username, viewerEmail);
 
         return ResponseEntity.ok(ApiResponse.<AuthResponse>builder()
                 .success(true)

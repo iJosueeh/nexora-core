@@ -45,6 +45,7 @@ type Mutation {
   
   # Interacciones
   toggleLike(postId: ID!): Boolean!
+  toggleFollow(targetUserId: ID!): Boolean!
 
   # Nuevas Mutaciones
   confirmRSVP(eventId: ID!): UniversityEvent!
@@ -133,6 +134,7 @@ type Profile {
   followingCount: Int
   academicInterests: [String!]
   profileComplete: Boolean
+  isFollowing: Boolean
 }
 
 input CreatePublicationInput {

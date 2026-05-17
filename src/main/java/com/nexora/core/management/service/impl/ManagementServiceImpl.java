@@ -151,7 +151,8 @@ public class ManagementServiceImpl implements ManagementService {
                 profile != null ? profile.getFollowersCount() : 0,
                 profile != null ? profile.getFollowingCount() : 0,
                 new ArrayList<>(),
-                user.getIsActive()
+                user.getIsActive(),
+                false
         );
     }
 

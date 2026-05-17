@@ -15,5 +15,6 @@ public record ProfileView(
         Integer followersCount,
         Integer followingCount,
         List<String> academicInterests,
-        Boolean profileComplete) {
+        Boolean profileComplete,
+        Boolean isFollowing) {
 }
