@@ -121,6 +121,10 @@ public class AuthService {
         // Sincronizar contadores antes de responder
         syncSocialCounters(user, profile);
 
+        // Forzar recarga desde DB para asegurar contadores frescos tras sync
+        profilesRepository.flush();
+        profile = profilesRepository.findById(profile.getId()).orElse(profile);
+
         long interestsCount = profilesInterestsRepository.countByProfile(profile);
         List<String> academicInterests = mapAcademicInterests(profile);
 
@@ -197,8 +201,8 @@ public class AuthService {
     }
 
     private void syncSocialCounters(User user, Profiles profile) {
-        long actualFollowers = followRepository.countByFollowing(user);
-        long actualFollowing = followRepository.countByFollower(user);
+        long actualFollowers = followRepository.countByFollowingId(user.getId());
+        long actualFollowing = followRepository.countByFollowerId(user.getId());
 
         boolean needsUpdate = false;
         if (profile.getFollowersCount() != (int) actualFollowers) {
@@ -211,11 +215,11 @@ public class AuthService {
         }
 
         if (needsUpdate) {
-            profilesRepository.save(profile);
+            profilesRepository.saveAndFlush(profile);
         }
     }
 
-    private ProfileView buildProfileView(User user, Profiles profile, long interestsCount) {
+    public ProfileView buildProfileView(User user, Profiles profile, long interestsCount) {
         UUID currentUserId = null;
         try {
             currentUserId = securityService.getCurrentUserId();

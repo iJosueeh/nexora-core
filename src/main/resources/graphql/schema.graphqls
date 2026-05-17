@@ -24,6 +24,8 @@ type Query {
 
   # Gestión de Usuarios
   allUsers(limit: Int = 20, offset: Int = 0, search: String = ""): [Profile!]!
+  followers(userId: ID!): [Profile!]!
+  following(userId: ID!): [Profile!]!
 }
 
 type AdminStats {

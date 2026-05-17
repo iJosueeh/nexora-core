@@ -1,6 +1,8 @@
 package com.nexora.core.profile.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import com.nexora.core.profile.entity.Profiles;
 
@@ -14,19 +16,19 @@ public interface ProfilesRepository extends JpaRepository<Profiles, UUID> {
 
     Optional<Profiles> findByUsernameIgnoreCase(String username);
 
-    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
-    @org.springframework.data.jpa.repository.Query("UPDATE Profiles p SET p.followersCount = p.followersCount + 1 WHERE p.user.id = :userId")
+    @Modifying(clearAutomatically = true)
+    @Query(value = "UPDATE perfiles SET followers_count = followers_count + 1 WHERE usuario_id = :userId", nativeQuery = true)
     void incrementFollowersCount(UUID userId);
 
-    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
-    @org.springframework.data.jpa.repository.Query("UPDATE Profiles p SET p.followersCount = p.followersCount - 1 WHERE p.user.id = :userId AND p.followersCount > 0")
+    @Modifying(clearAutomatically = true)
+    @Query(value = "UPDATE perfiles SET followers_count = GREATEST(0, followers_count - 1) WHERE usuario_id = :userId", nativeQuery = true)
     void decrementFollowersCount(UUID userId);
 
-    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
-    @org.springframework.data.jpa.repository.Query("UPDATE Profiles p SET p.followingCount = p.followingCount + 1 WHERE p.user.id = :userId")
+    @Modifying(clearAutomatically = true)
+    @Query(value = "UPDATE perfiles SET following_count = following_count + 1 WHERE usuario_id = :userId", nativeQuery = true)
     void incrementFollowingCount(UUID userId);
 
-    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
-    @org.springframework.data.jpa.repository.Query("UPDATE Profiles p SET p.followingCount = p.followingCount - 1 WHERE p.user.id = :userId AND p.followingCount > 0")
+    @Modifying(clearAutomatically = true)
+    @Query(value = "UPDATE perfiles SET following_count = GREATEST(0, following_count - 1) WHERE usuario_id = :userId", nativeQuery = true)
     void decrementFollowingCount(UUID userId);
 }

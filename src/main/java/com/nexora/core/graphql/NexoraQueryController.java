@@ -24,6 +24,18 @@ public class        NexoraQueryController {
 
     private final FeedQueryService feedQueryService;
 
+    private final com.nexora.core.content.services.SocialService socialService;
+
+    @QueryMapping
+    public List<com.nexora.core.graphql.dto.ProfileView> followers(@Argument UUID userId) {
+        return socialService.getFollowers(userId);
+    }
+
+    @QueryMapping
+    public List<com.nexora.core.graphql.dto.ProfileView> following(@Argument UUID userId) {
+        return socialService.getFollowing(userId);
+    }
+
     @QueryMapping
     public String health() {
         return "Nexora GraphQL API is running";

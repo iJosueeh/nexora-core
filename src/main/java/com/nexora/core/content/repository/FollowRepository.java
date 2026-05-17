@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -18,6 +19,18 @@ public interface FollowRepository extends JpaRepository<Follow, UUID> {
 
     @Query("SELECT COUNT(f) > 0 FROM Follow f WHERE f.follower.id = :followerId AND f.following.id = :followingId")
     boolean existsByFollowerIdAndFollowingId(UUID followerId, UUID followingId);
+
+    @Query("SELECT COUNT(f) FROM Follow f WHERE f.follower.id = :followerId")
+    long countByFollowerId(UUID followerId);
+
+    @Query("SELECT COUNT(f) FROM Follow f WHERE f.following.id = :followingId")
+    long countByFollowingId(UUID followingId);
+
+    @Query("SELECT f.follower FROM Follow f WHERE f.following.id = :followingId")
+    List<User> findFollowersByFollowingId(UUID followingId);
+
+    @Query("SELECT f.following FROM Follow f WHERE f.follower.id = :followerId")
+    List<User> findFollowingByFollowerId(UUID followerId);
 
     long countByFollower(User follower);
     long countByFollowing(User following);
