@@ -10,6 +10,7 @@ import org.springframework.stereotype.Controller;
 import com.nexora.core.graphql.dto.CommentThreadView;
 import com.nexora.core.graphql.dto.FeedPostView;
 import com.nexora.core.graphql.dto.TagSuggestionView;
+import com.nexora.core.graphql.dto.TrendingTopicView;
 
 import lombok.RequiredArgsConstructor;
 
@@ -58,5 +59,11 @@ public class        NexoraQueryController {
         int safeLimit = limit == null ? 12 : Math.max(1, Math.min(limit, MAX_TAG_LIMIT));
         String safeSearch = search == null ? "" : search.trim().toLowerCase();
         return feedQueryService.obtenerTagsDisponibles(safeSearch, safeLimit);
+    }
+
+    @QueryMapping
+    public List<TrendingTopicView> trendingTopics(@Argument Integer limit) {
+        int safeLimit = limit == null ? 10 : Math.max(1, Math.min(limit, 50));
+        return feedQueryService.obtenerTrendingTopics(safeLimit);
     }
 }

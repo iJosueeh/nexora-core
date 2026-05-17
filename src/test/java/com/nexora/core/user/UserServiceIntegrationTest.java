@@ -12,9 +12,11 @@ import com.nexora.core.profile.repository.ProfilesRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.persistence.EntityManager;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 
 import java.util.UUID;
 
@@ -22,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
-@Transactional
+@Transactional(propagation = Propagation.REQUIRES_NEW)
 class UserServiceIntegrationTest {
 
     @Autowired
@@ -37,32 +39,36 @@ class UserServiceIntegrationTest {
     @Autowired
     private ProfilesRepository profilesRepository;
 
+    @Autowired
+    private EntityManager entityManager;
+
     private User testUser;
 
     @BeforeEach
     void setUp() {
-        userRepository.deleteAll();
+        // Clear persistence context to avoid transient instances from other tests
+        entityManager.clear();
         
         Roles studentRole = roleRepository.findByName(Role.ROLE_STUDENT.name())
-                .orElseGet(() -> {
-                    Roles r = new Roles();
-                    r.setName(Role.ROLE_STUDENT.name());
-                    return roleRepository.save(r);
-                });
+            .orElseGet(() -> {
+                Roles r = new Roles();
+                r.setName(Role.ROLE_STUDENT.name());
+                return roleRepository.saveAndFlush(r);
+            });
 
         testUser = new User();
-        testUser.setEmail("service.test@utp.edu.pe");
+        testUser.setEmail("service.test+" + UUID.randomUUID() + "@utp.edu.pe");
         testUser.setRole(studentRole);
-        testUser = userRepository.save(testUser);
+        testUser = userRepository.saveAndFlush(testUser);
 
         Profiles profile = new Profiles();
         profile.setUser(testUser);
-        profile.setUsername("service_tester");
+        profile.setUsername("service_tester_" + UUID.randomUUID().toString().substring(0,8));
         profile.setFullName("Service Tester");
-        profile = profilesRepository.save(profile);
-        
+        profile = profilesRepository.saveAndFlush(profile);
+
         testUser.setProfile(profile);
-        userRepository.save(testUser);
+        userRepository.saveAndFlush(testUser);
     }
 
     @Test
@@ -71,7 +77,7 @@ class UserServiceIntegrationTest {
 
         assertNotNull(response);
         assertEquals(testUser.getEmail(), response.getEmail());
-        assertEquals("service_tester", response.getUsername());
+        assertEquals(testUser.getProfile().getUsername(), response.getUsername());
     }
 
     @Test
