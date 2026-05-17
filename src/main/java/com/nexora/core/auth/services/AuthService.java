@@ -128,7 +128,7 @@ public class AuthService {
         if (viewerEmail != null) {
             User viewer = userRepository.findByEmail(viewerEmail).orElse(null);
             if (viewer != null) {
-                isFollowing = followRepository.existsByFollowerAndFollowing(viewer, user);
+                isFollowing = followRepository.existsByFollowerIdAndFollowingId(viewer.getId(), user.getId());
             }
         }
 
@@ -228,7 +228,7 @@ public class AuthService {
         if (currentUserId != null && !currentUserId.equals(user.getId())) {
             User viewer = userRepository.findById(currentUserId).orElse(null);
             if (viewer != null) {
-                isFollowing = followRepository.existsByFollowerAndFollowing(viewer, user);
+                isFollowing = followRepository.existsByFollowerIdAndFollowingId(viewer.getId(), user.getId());
             }
         }
 

@@ -1,12 +1,9 @@
 package com.nexora.core.content.services;
 
-import com.nexora.core.content.entity.Follow;
-import com.nexora.core.content.repository.FollowRepository;
-import com.nexora.core.profile.repository.ProfilesRepository;
 import com.nexora.core.security.service.SecurityService;
-import com.nexora.core.user.entity.User;
-import com.nexora.core.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,9 +13,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class SocialService {
 
-    private final FollowRepository followRepository;
-    private final UserRepository userRepository;
-    private final ProfilesRepository profilesRepository;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
     private final SecurityService securityService;
 
     @Transactional
@@ -29,32 +24,40 @@ public class SocialService {
             throw new IllegalArgumentException("You cannot follow yourself");
         }
 
-        User follower = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new RuntimeException("Current user not found"));
-        User following = userRepository.findById(targetUserId)
-                .orElseThrow(() -> new RuntimeException("Target user not found"));
+        String checkSql = "SELECT EXISTS(SELECT 1 FROM seguidores WHERE follower_id = :followerId AND following_id = :followingId)";
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("followerId", currentUserId)
+                .addValue("followingId", targetUserId);
 
-        boolean alreadyFollowing = followRepository.existsByFollowerAndFollowing(follower, following);
+        Boolean alreadyFollowing = jdbcTemplate.queryForObject(checkSql, params, Boolean.class);
 
-        if (alreadyFollowing) {
-            followRepository.deleteByFollowerAndFollowing(follower, following);
+        if (Boolean.TRUE.equals(alreadyFollowing)) {
+            String deleteSql = "DELETE FROM seguidores WHERE follower_id = :followerId AND following_id = :followingId";
+            jdbcTemplate.update(deleteSql, params);
             
-            // Update counters
-            profilesRepository.decrementFollowingCount(currentUserId);
-            profilesRepository.decrementFollowersCount(targetUserId);
-            
-            return false; // Unfollowed
+            updateCounters(currentUserId, targetUserId, -1);
+            return false; 
         } else {
-            Follow follow = new Follow();
-            follow.setFollower(follower);
-            follow.setFollowing(following);
-            followRepository.save(follow);
+            String insertSql = "INSERT INTO seguidores (id, follower_id, following_id, created_at) " +
+                               "VALUES (:id, :followerId, :followingId, NOW())";
+            params.addValue("id", UUID.randomUUID());
+            jdbcTemplate.update(insertSql, params);
             
-            // Update counters
-            profilesRepository.incrementFollowingCount(currentUserId);
-            profilesRepository.incrementFollowersCount(targetUserId);
-            
-            return true; // Followed
+            updateCounters(currentUserId, targetUserId, 1);
+            return true;
         }
+    }
+
+    private void updateCounters(UUID followerUserId, UUID followingUserId, int delta) {
+        String updateFollowingSql = "UPDATE perfiles SET following_count = GREATEST(0, following_count + :delta) WHERE usuario_id = :userId";
+        String updateFollowersSql = "UPDATE perfiles SET followers_count = GREATEST(0, followers_count + :delta) WHERE usuario_id = :userId";
+
+        jdbcTemplate.update(updateFollowingSql, new MapSqlParameterSource()
+                .addValue("delta", delta)
+                .addValue("userId", followerUserId));
+
+        jdbcTemplate.update(updateFollowersSql, new MapSqlParameterSource()
+                .addValue("delta", delta)
+                .addValue("userId", followingUserId));
     }
 }
