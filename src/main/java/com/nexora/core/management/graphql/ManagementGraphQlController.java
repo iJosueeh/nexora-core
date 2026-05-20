@@ -50,7 +50,7 @@ public class ManagementGraphQlController {
     }
 
     @MutationMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public Boolean deletePost(@Argument UUID postId) {
         return managementService.deletePost(postId);
     }

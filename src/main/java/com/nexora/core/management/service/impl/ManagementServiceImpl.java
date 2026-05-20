@@ -22,6 +22,7 @@ import com.nexora.core.management.graphql.dto.RecentActivityView;
 import com.nexora.core.management.service.ManagementService;
 import com.nexora.core.profile.entity.Profiles;
 import com.nexora.core.profile.repository.ProfilesRepository;
+import com.nexora.core.security.service.SecurityService;
 import com.nexora.core.user.entity.User;
 import com.nexora.core.user.repository.UserRepository;
 
@@ -37,6 +38,7 @@ public class ManagementServiceImpl implements ManagementService {
     private final PostRepository postRepository;
     private final UniversityEventRepository eventRepository;
     private final ProfilesRepository profilesRepository;
+    private final SecurityService securityService;
 
     @Override
     public AdminStatsView getAdminStats() {
@@ -130,10 +132,20 @@ public class ManagementServiceImpl implements ManagementService {
     @Override
     @Transactional
     public boolean deletePost(UUID postId) {
-        if (!postRepository.existsById(postId)) {
-            throw new RuntimeException("Publicación no encontrada");
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new RuntimeException("Publicación no encontrada"));
+        
+        UUID currentUserId = securityService.getCurrentUserId();
+
+        boolean isAdmin = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                .getAuthentication().getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!isAdmin && !post.getAutor().getId().equals(currentUserId)) {
+            throw new RuntimeException("No tienes permiso para eliminar esta publicación");
         }
-        postRepository.deleteById(postId);
+
+        postRepository.delete(post);
         return true;
     }
 
